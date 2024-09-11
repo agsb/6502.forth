@@ -1,0 +1,61 @@
+#! /usr/bin/bash
+
+echo " start compiling "
+
+case $1 in
+
+
+a)   
+    cl65 -C $2.cfg -Ln $2.lbl -l $2.lst -vm -m $2.map \
+    --debug-info --cpu 6502 -t none --no-target-lib \
+    -o $2.roms \
+    $2.s 2> err | tee out
+
+    # mv rom.bin $2.rom
+
+    ;;
+
+    # --debug-info \
+    # -mm \
+    # --pagelength 34 \
+    # --list-bytes 72 \
+    # --create-full-dep $2.dep \
+c) 
+    ca65 -W 1 \
+    -l $2.lst -o $2.obj \
+    -mm near \
+    -v --debug-info \
+    --list-bytes 72 \
+    --pagelength 34 \
+    --cpu 6502 -t none \
+    $2.s 2> err | tee out
+
+ 
+    ld65 -v -vm -S 4096 \
+    -m $2.map -Ln $2.lbl -C $2.cfg -o $2.bin $2.obj
+    
+    ;;
+
+o)
+#    od --endian=big -x < $2.ram.bin > $2.ram.hx
+
+    od --endian=big -x < $2.rom.bin > $2.rom.hx
+
+    ;;
+
+x)
+    rm $2.obj $2.dep $2.asm $2.map $2.lbl $2.lst $2.ram $2.rom
+    rm out err *.bin *.hx 
+    
+    ;;
+
+w)
+    grep HEADER *.s | grep -v immu > words
+    ;;
+
+esac
+
+echo " stop compiling "
+
+
+

@@ -78,7 +78,7 @@ Uses one absolute pointer _ptr_ to memory. Stacks with up to 128 cells. Each sta
 ### split absolute address indexed by X or Y
       
       .macro push_axs idz, lsb, msb 
-            LDX \idz; LDA \msb; STA ptr_lo - 1, X; LDA \lsb; STA ptr_hi - 1, X; DEX; STX \idz;
+            LDX \idz; LDA \lsb; STA ptr_lo - 1, X; LDA \m sb; STA ptr_hi - 1, X; DEX; STX \idz;
       .endmacro    
       
       .macro pull_axs idz, lsb, msb 

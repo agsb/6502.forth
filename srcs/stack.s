@@ -176,7 +176,7 @@ pull_AX:
 ;## split absolute addres indexed by X or Y
 
 push_AXS: 
-  LDY ind
+  LDX ind
   LDA msb
   STA ptr_lo - 1, X
   LDA lsb

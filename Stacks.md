@@ -122,9 +122,9 @@ Uses an absolute pointer _ptr_ to memory. _Stacks with up to any size_. Each sta
   
 ### What Do 
 
-Consider for no multitask, no multiuser, just 128 deep stacks, reduce overhead, direct memoy access and good timing, then
+Consider for no multitask, no multiuser, just 256 deep stacks, reduce overhead, direct memoy access and good timing, then
 
-_Using absolute address indexed access for stacks_ 
+_Using split absolute address indexed access for stacks_ 
 
 It provides the most fast overall implementation because does not need use push and pull. 
 

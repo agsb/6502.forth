@@ -41,14 +41,14 @@ rdrop: ; 16
     iny
     iny
     sty rpt
-    rst
+    rts
 
 rkeep: ; 16
     ldy rpt
     dey
     dey
     sty rpt
-    rst
+    rts
 
 spull:
     ldy spt

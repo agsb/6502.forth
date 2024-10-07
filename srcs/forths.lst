@@ -1,0 +1,800 @@
+ca65 V2.19 - Git 5537b61e6
+Main file   : forths.s
+Current file: forths.s
+
+000000r 1               ; vim: filetype=asm sw=4 ts=4 autoindent expandtab shiftwidth=4 et:
+000000r 1               ;----------------------------------------------------------------------
+000000r 1               ; Copyright (c) 2023, Alvaro Gomes Sobral Barcellos
+000000r 1               ; All rights reserved.
+000000r 1               ;
+000000r 1               ; Redistribution and use in source and binary forms, with or without
+000000r 1               ; modification, are permitted provided that the following conditions
+000000r 1               ; are met:
+000000r 1               ;
+000000r 1               ; 1. Redistributions of source code must retain the above copyright
+000000r 1               ;    notice, this list of conditions and the following disclaimer.
+000000r 1               ;
+000000r 1               ; 2. Redistributions in binary form must reproduce the above copyright
+000000r 1               ;    notice, this list of conditions and the following disclaimer in
+000000r 1               ;    the documentation and/or other materials provided with the
+000000r 1               ;    distribution.
+000000r 1               ;
+000000r 1               ; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+000000r 1               ; "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+000000r 1               ; LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+000000r 1               ; FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+000000r 1               ; COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+000000r 1               ; INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+000000r 1               ; BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES, LOSS
+000000r 1               ; OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+000000r 1               ; AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+000000r 1               ; LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+000000r 1               ; ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+000000r 1               ; POSSIBILITY OF SUCH DAMAGE.
+000000r 1               ;---------------------------------------------------------------------
+000000r 1               
+000000r 1               ;--------------------------------------------------------
+000000r 1               ;
+000000r 1               ;  ca65 assembler specifics
+000000r 1               ;
+000000r 1               ;--------------------------------------------------------
+000000r 1               
+000000r 1               ; identifiers
+000000r 1               
+000000r 1               .case +
+000000r 1               
+000000r 1               ; enable features
+000000r 1               
+000000r 1               .feature c_comments
+000000r 1               
+000000r 1               .feature string_escapes
+000000r 1               
+000000r 1               .feature org_per_seg
+000000r 1               
+000000r 1               .feature dollar_is_pc
+000000r 1               
+000000r 1               .feature pc_assignment
+000000r 1               
+000000r 1               ; enable 6502 mode
+000000r 1               
+000000r 1               .p02
+000000r 1               
+000000r 1               ;---------------------------------------------------------------------
+000000r 1               ;    constants
+000000r 1               FALSE = 0
+000000r 1               TRUE = 1
+000000r 1               
+000000r 1               STACKSIZE = $30
+000000r 1               
+000000r 1               HALFSTK =   $30 / 2
+000000r 1               
+000000r 1               TERMINAL  = $100
+000000r 1               
+000000r 1               ;---------------------------------------------------------------------
+000000r 1               ;   using absolute memory indirect references
+000000r 1               ;
+000000r 1               ;   .byte idx
+000000r 1               ;   .byte idy
+000000r 1               ;   .word spt
+000000r 1               ;   .word rpt
+000000r 1               ;   .word ipt
+000000r 1               ;   .word dpt
+000000r 1               ;   .word tos
+000000r 1               ;   .word usr
+000000r 1               ;
+000000r 1               ;---------------------------------------------------------------------
+000000r 1               ; Forth like functions
+000000r 1               ; to keep code safe by not using "fall throught".
+000000r 1               ; uses A, Y, X caller must saves.
+000000r 1               ; needs 2 levels of hardware stack
+000000r 1               ; uses 4 bytes in page zero as temporary, TOS and NOS
+000000r 1               ; uses 6 bytes in memory for internal use
+000000r 1               ;---------------------------------------------------------------------
+000000r 1               .segment "ZERO"
+000000r 1               
+000000r 1               * = $F0
+0000F0  1               
+0000F0  1               ; forth sp index
+0000F0  1  00           six:    .byte $0
+0000F1  1               ; forth rp index
+0000F1  1  00           rix:    .byte $0
+0000F2  1               ; data stack base pointer
+0000F2  1  00 00        spt:    .word $0
+0000F4  1               ; return stack base pointer
+0000F4  1  00 00        rpt:    .word $0
+0000F6  1               ; dictionary next free cell pointer
+0000F6  1  00 00        dpt:    .word $0
+0000F8  1               ; instruction pointer
+0000F8  1  00 00        ipt:    .word $0
+0000FA  1               
+0000FA  1               ; registers
+0000FA  1               
+0000FA  1  00 00        wrk:    .word $0
+0000FC  1  00 00        tos:    .word $0
+0000FE  1  00 00        nos:    .word $0
+000100  1  00 00        tmp:    .word $0
+000102  1               
+000102  1               ;---------------------------------------------------------------------
+000102  1               .segment "CODE"
+000000r 1               
+000000r 1               tib:
+000000r 1  00 00 00 00  .res TERMINAL, $0
+000004r 1  00 00 00 00  
+000008r 1  00 00 00 00  
+000100r 1               
+000100r 1               ; could be at page zero, less code, less cycles
+000100r 1               
+000100r 1  00 00 00 00  .res STACKSIZE, $0
+000104r 1  00 00 00 00  
+000108r 1  00 00 00 00  
+000130r 1  00 00        dat_zero: .word $0
+000132r 1               
+000132r 1  00 00 00 00  .res STACKSIZE, $0
+000136r 1  00 00 00 00  
+00013Ar 1  00 00 00 00  
+000162r 1  00 00        ret_zero: .word $0
+000164r 1               
+000164r 1               ;---------------------------------------------------------------------
+000164r 1               .segment "ONCE"
+000000r 1               
+000000r 1               ;---------------------------------------------------------------------
+000000r 1               ;   data stack stuff
+000000r 1               
+000000r 1               keep_: ; to push
+000000r 1                   ; ldx six
+000000r 1  CA               dex
+000001r 1  CA               dex
+000002r 1  86 F0            stx six
+000004r 1  60               rts
+000005r 1               
+000005r 1               lose_: ; to pull
+000005r 1                   ; ldx six
+000005r 1  E8               inx
+000006r 1  E8               inx
+000007r 1  86 F0            stx six
+000009r 1  60               rts
+00000Ar 1               
+00000Ar 1               spush:
+00000Ar 1               push_:
+00000Ar 1  A6 F0            ldx six
+00000Cr 1  A5 FC            lda tos + 0
+00000Er 1  9D rr rr         sta dat_zero - 2, x
+000011r 1  A5 FD            lda tos + 1
+000013r 1  9D rr rr         sta dat_zero - 1, x
+000016r 1  4C rr rr         jmp keep_
+000019r 1               
+000019r 1               spull:
+000019r 1               pull_:
+000019r 1  A6 F0            ldx six
+00001Br 1  BD rr rr         lda dat_zero + 0, x
+00001Er 1  85 FC            sta tos + 0
+000020r 1  BD rr rr         lda dat_zero + 1, x
+000023r 1  85 FD            sta tos + 1
+000025r 1  4C rr rr         jmp lose_
+000028r 1               
+000028r 1               push2_:
+000028r 1  A6 F0            ldx six
+00002Ar 1  A5 FE            lda nos + 0
+00002Cr 1  9D rr rr         sta dat_zero - 4, x
+00002Fr 1  A5 FF            lda nos + 1
+000031r 1  9D rr rr         sta dat_zero - 3, x
+000034r 1  A5 FC            lda tos + 0
+000036r 1  9D rr rr         sta dat_zero - 2, x
+000039r 1  A5 FD            lda tos + 1
+00003Br 1  9D rr rr         sta dat_zero - 1, x
+00003Er 1  20 rr rr         jsr keep_
+000041r 1  4C rr rr         jmp keep_
+000044r 1               
+000044r 1               pull2_:
+000044r 1  A6 F0            ldx six
+000046r 1  BD rr rr         lda dat_zero + 0, x
+000049r 1  85 FC            sta tos + 0
+00004Br 1  BD rr rr         lda dat_zero + 1, x
+00004Er 1  85 FD            sta tos + 1
+000050r 1  BD rr rr         lda dat_zero + 2, x
+000053r 1  85 FE            sta nos + 0
+000055r 1  BD rr rr         lda dat_zero + 3, x
+000058r 1  85 FF            sta nos + 1
+00005Ar 1  20 rr rr         jsr lose_
+00005Dr 1  4C rr rr         jmp lose_
+000060r 1               
+000060r 1               drop_:
+000060r 1  A6 F0            ldx six
+000062r 1  20 rr rr         jsr lose_
+000065r 1                   ; rts
+000065r 1  4C rr rr         jmp link_
+000068r 1               
+000068r 1               dup_:
+000068r 1  A6 F0            ldx six
+00006Ar 1  BD rr rr         lda dat_zero + 0, x
+00006Dr 1  8D rr rr         sta dat_zero - 2
+000070r 1  BD rr rr         lda dat_zero + 1, x
+000073r 1  8D rr rr         sta dat_zero - 1
+000076r 1  20 rr rr         jsr keep_
+000079r 1                   ; rts
+000079r 1  4C rr rr         jmp link_
+00007Cr 1               
+00007Cr 1               over_:
+00007Cr 1  A6 F0            ldx six
+00007Er 1  BD rr rr         lda dat_zero + 2, x
+000081r 1  8D rr rr         sta dat_zero - 2
+000084r 1  BD rr rr         lda dat_zero + 3, x
+000087r 1  8D rr rr         sta dat_zero - 1
+00008Ar 1  20 rr rr         jsr keep_
+00008Dr 1                   ; rts
+00008Dr 1  4C rr rr         jmp link_
+000090r 1               
+000090r 1               swap_:
+000090r 1  A6 F0            ldx six
+000092r 1  BD rr rr         lda dat_zero + 0, x
+000095r 1  8D rr rr         sta dat_zero - 2
+000098r 1  BD rr rr         lda dat_zero + 1, x
+00009Br 1  8D rr rr         sta dat_zero - 1
+00009Er 1  BD rr rr         lda dat_zero + 2, x
+0000A1r 1  8D rr rr         sta dat_zero + 0
+0000A4r 1  BD rr rr         lda dat_zero + 3, x
+0000A7r 1  8D rr rr         sta dat_zero + 1
+0000AAr 1  BD rr rr         lda dat_zero - 2, x
+0000ADr 1  8D rr rr         sta dat_zero + 2
+0000B0r 1  BD rr rr         lda dat_zero - 1, x
+0000B3r 1  8D rr rr         sta dat_zero + 3
+0000B6r 1                   ; rts
+0000B6r 1  4C rr rr         jmp link_
+0000B9r 1               
+0000B9r 1               rot_:
+0000B9r 1  A6 F0            ldx six
+0000BBr 1  BD rr rr         lda dat_zero + 4, x
+0000BEr 1  8D rr rr         sta dat_zero - 2
+0000C1r 1  BD rr rr         lda dat_zero + 5, x
+0000C4r 1  8D rr rr         sta dat_zero - 1
+0000C7r 1  BD rr rr         lda dat_zero + 2, x
+0000CAr 1  8D rr rr         sta dat_zero + 4
+0000CDr 1  BD rr rr         lda dat_zero + 3, x
+0000D0r 1  8D rr rr         sta dat_zero + 5
+0000D3r 1  BD rr rr         lda dat_zero + 0, x
+0000D6r 1  8D rr rr         sta dat_zero + 2
+0000D9r 1  BD rr rr         lda dat_zero + 1, x
+0000DCr 1  8D rr rr         sta dat_zero + 3
+0000DFr 1  BD rr rr         lda dat_zero - 2, x
+0000E2r 1  8D rr rr         sta dat_zero + 0
+0000E5r 1  BD rr rr         lda dat_zero - 1, x
+0000E8r 1  8D rr rr         sta dat_zero + 1
+0000EBr 1                   ; rts
+0000EBr 1  4C rr rr         jmp link_
+0000EEr 1               
+0000EEr 1               and_:
+0000EEr 1  A6 F0            ldx six
+0000F0r 1  BD rr rr         lda dat_zero + 0, x
+0000F3r 1  3D rr rr         and dat_zero + 2, x
+0000F6r 1  9D rr rr         sta dat_zero + 2, x
+0000F9r 1  BD rr rr         lda dat_zero + 1, x
+0000FCr 1  3D rr rr         and dat_zero + 3, x
+0000FFr 1  9D rr rr         sta dat_zero + 3, x
+000102r 1  4C rr rr         jmp drop_
+000105r 1               
+000105r 1               or_:
+000105r 1  A6 F0            ldx six
+000107r 1  BD rr rr         lda dat_zero + 0, x
+00010Ar 1  1D rr rr         ora dat_zero + 2, x
+00010Dr 1  9D rr rr         sta dat_zero + 2, x
+000110r 1  BD rr rr         lda dat_zero + 1, x
+000113r 1  1D rr rr         ora dat_zero + 3, x
+000116r 1  9D rr rr         sta dat_zero + 3, x
+000119r 1  4C rr rr         jmp drop_
+00011Cr 1               
+00011Cr 1               xor_:
+00011Cr 1  A6 F0            ldx six
+00011Er 1  BD rr rr         lda dat_zero + 0, x
+000121r 1  5D rr rr         eor dat_zero + 2, x
+000124r 1  9D rr rr         sta dat_zero + 2, x
+000127r 1  BD rr rr         lda dat_zero + 1, x
+00012Ar 1  5D rr rr         eor dat_zero + 3, x
+00012Dr 1  9D rr rr         sta dat_zero + 3, x
+000130r 1  4C rr rr         jmp drop_
+000133r 1               
+000133r 1               cpt_:
+000133r 1  A6 F0            ldx six
+000135r 1  38               sec
+000136r 1  98               tya
+000137r 1  FD rr rr         sbc dat_zero + 0, x
+00013Ar 1  9D rr rr         sta dat_zero + 0, x
+00013Dr 1  38               sec
+00013Er 1  98               tya
+00013Fr 1  FD rr rr         sbc dat_zero + 1, x
+000142r 1  9D rr rr         sta dat_zero + 1, x
+000145r 1                   ; rts
+000145r 1  4C rr rr         jmp link_
+000148r 1               
+000148r 1               neg_:
+000148r 1  A9 00            lda #$00
+00014Ar 1  A8               tay
+00014Br 1  4C rr rr         jmp cpt_
+00014Er 1               
+00014Er 1               inv_:
+00014Er 1  A9 FF            lda #$FF
+000150r 1  A8               tay
+000151r 1  4C rr rr         jmp cpt_
+000154r 1               
+000154r 1               sub_:
+000154r 1  A6 F0            ldx six
+000156r 1  38               sec
+000157r 1  BD rr rr         lda dat_zero + 2, x
+00015Ar 1  FD rr rr         sbc dat_zero + 0, x
+00015Dr 1  9D rr rr         sta dat_zero + 2, x
+000160r 1  BD rr rr         lda dat_zero + 3, x
+000163r 1  FD rr rr         sbc dat_zero + 1, x
+000166r 1  9D rr rr         sta dat_zero + 3, x
+000169r 1  4C rr rr         jmp drop_
+00016Cr 1               
+00016Cr 1               add_:
+00016Cr 1  A6 F0            ldx six
+00016Er 1  18               clc
+00016Fr 1  BD rr rr         lda dat_zero + 2, x
+000172r 1  7D rr rr         adc dat_zero + 0, x
+000175r 1  9D rr rr         sta dat_zero + 2, x
+000178r 1  BD rr rr         lda dat_zero + 3, x
+00017Br 1  7D rr rr         adc dat_zero + 1, x
+00017Er 1  9D rr rr         sta dat_zero + 3, x
+000181r 1  4C rr rr         jmp drop_
+000184r 1               
+000184r 1               cmp_:
+000184r 1  A6 F0            ldx six
+000186r 1  38               sec
+000187r 1  BD rr rr         lda dat_zero + 2, x
+00018Ar 1  FD rr rr         sbc dat_zero + 0, x
+00018Dr 1  BD rr rr         lda dat_zero + 3, x
+000190r 1  FD rr rr         sbc dat_zero + 1, x
+000193r 1  60               rts
+000194r 1               
+000194r 1               eq_:
+000194r 1  20 rr rr         jsr cmp_
+000197r 1  F0 21            beq true2_
+000199r 1  D0 1B            bne false2_
+00019Br 1               
+00019Br 1               lt_:
+00019Br 1  20 rr rr         jsr cmp_
+00019Er 1  30 1A            bmi true2_
+0001A0r 1  10 14            bpl false2_
+0001A2r 1               
+0001A2r 1               gt_:
+0001A2r 1  20 rr rr         jsr cmp_
+0001A5r 1  30 0F            bmi false2_
+0001A7r 1  F0 0D            beq false2_
+0001A9r 1  10 0F            bpl true2_
+0001ABr 1               
+0001ABr 1               same2_:
+0001ABr 1  A6 F0            ldx six
+0001ADr 1  9D rr rr         sta dat_zero + 2, x
+0001B0r 1  9D rr rr         sta dat_zero + 3, x
+0001B3r 1  4C rr rr         jmp drop_
+0001B6r 1               
+0001B6r 1               false2_:
+0001B6r 1  A9 00            lda #(FALSE)
+0001B8r 1  F0 F1            beq same2_
+0001BAr 1               
+0001BAr 1               true2_:
+0001BAr 1  A9 01            lda #(TRUE)
+0001BCr 1  D0 ED            bne same2_
+0001BEr 1               
+0001BEr 1               shl_:
+0001BEr 1  A6 F0            ldx six
+0001C0r 1  1E rr rr         asl dat_zero + 0, x
+0001C3r 1  3E rr rr         rol dat_zero + 1, x
+0001C6r 1                   ; rts
+0001C6r 1  4C rr rr         jmp link_
+0001C9r 1               
+0001C9r 1               shr_:
+0001C9r 1  A6 F0            ldx six
+0001CBr 1  5E rr rr         lsr dat_zero + 0, x
+0001CEr 1  7E rr rr         ror dat_zero + 1, x
+0001D1r 1                   ; rts
+0001D1r 1  4C rr rr         jmp link_
+0001D4r 1               
+0001D4r 1               cto_:
+0001D4r 1  20 rr rr         jsr pull2_
+0001D7r 1  A0 00            ldy #0
+0001D9r 1  A5 FE            lda nos + 0
+0001DBr 1  91 FC            sta (tos), y
+0001DDr 1  60               rts
+0001DEr 1               
+0001DEr 1               to_:
+0001DEr 1  20 rr rr         jsr cto_
+0001E1r 1  C8               iny
+0001E2r 1  A5 FF            lda nos + 1
+0001E4r 1  91 FC            sta (tos), y
+0001E6r 1  60               rts
+0001E7r 1               
+0001E7r 1               cStore_:
+0001E7r 1  20 rr rr         jsr cto_
+0001EAr 1                   ; rts
+0001EAr 1  4C rr rr         jmp link_
+0001EDr 1               
+0001EDr 1               store_:
+0001EDr 1  20 rr rr         jsr to_
+0001F0r 1                   ; rts
+0001F0r 1  4C rr rr         jmp link_
+0001F3r 1               
+0001F3r 1               cat_:
+0001F3r 1  A6 F0            ldx six
+0001F5r 1  BD rr rr         lda dat_zero + 0, x
+0001F8r 1  85 FC            sta tos + 0
+0001FAr 1  BD rr rr         lda dat_zero + 1, x
+0001FDr 1  85 FD            sta tos + 1
+0001FFr 1  A0 00            ldy #0
+000201r 1  B1 FC            lda (tos), y
+000203r 1  9D rr rr         sta dat_zero + 0, x
+000206r 1  60               rts
+000207r 1               
+000207r 1               at_:
+000207r 1  20 rr rr         jsr cat_
+00020Ar 1  C8               iny
+00020Br 1  B1 FC            lda (tos), y
+00020Dr 1  9D rr rr         sta dat_zero + 1, x
+000210r 1  60               rts
+000211r 1               
+000211r 1               cFetch_:
+000211r 1  20 rr rr         jsr cat_
+000214r 1                   ; rts
+000214r 1  4C rr rr         jmp link_
+000217r 1               
+000217r 1               fetch_:
+000217r 1  20 rr rr         jsr at_
+00021Ar 1                   ; rts
+00021Ar 1  4C rr rr         jmp link_
+00021Dr 1               
+00021Dr 1               incr_:
+00021Dr 1  A6 F0            ldx six
+00021Fr 1  FE rr rr         inc dat_zero + 0, x
+000222r 1  D0 03            bne @ends
+000224r 1  FE rr rr         inc dat_zero + 1, x
+000227r 1               @ends:
+000227r 1                   ; rts
+000227r 1  4C rr rr         jmp link_
+00022Ar 1               
+00022Ar 1               decr_:
+00022Ar 1  A6 F0            ldx six
+00022Cr 1  BD rr rr         lda dat_zero + 0, x
+00022Fr 1  D0 03            bne @ends
+000231r 1  DE rr rr         dec dat_zero + 1, x
+000234r 1               @ends:
+000234r 1  DE rr rr         dec dat_zero + 0, x
+000237r 1                   ; rts
+000237r 1  4C rr rr         jmp link_
+00023Ar 1               
+00023Ar 1               goto_:
+00023Ar 1  A6 F0            ldx six
+00023Cr 1  BD rr rr         lda dat_zero + 1,x
+00023Fr 1  48               pha
+000240r 1  BD rr rr         lda dat_zero + 0,x
+000243r 1  48               pha
+000244r 1  08               php
+000245r 1  40               rti
+000246r 1               
+000246r 1               addto_:
+000246r 1  20 rr rr         jsr pull2_
+000249r 1  A0 00            ldy #0
+00024Br 1  18               clc
+00024Cr 1  B1 FC            lda (tos), y
+00024Er 1  65 FE            adc nos + 0
+000250r 1  91 FC            sta (tos), y
+000252r 1  C8               iny
+000253r 1  B1 FC            lda (tos), y
+000255r 1  65 FF            adc nos + 1
+000257r 1  91 FC            sta (tos), y
+000259r 1                   ; rts
+000259r 1  4C rr rr     	jmp link_
+00025Cr 1               
+00025Cr 1               subto_:
+00025Cr 1  20 rr rr         jsr pull2_
+00025Fr 1  A0 00            ldy #0
+000261r 1  38               sec
+000262r 1  B1 FC            lda (tos), y
+000264r 1  E5 FE            sbc nos + 0
+000266r 1  91 FC            sta (tos), y
+000268r 1  C8               iny
+000269r 1  B1 FC            lda (tos), y
+00026Br 1  E5 FF            sbc nos + 1
+00026Dr 1  91 FC            sta (tos), y
+00026Fr 1                   ; rts
+00026Fr 1  4C rr rr     	jmp link_
+000272r 1               
+000272r 1               ;----------------------------------------------------------------------
+000272r 1               ;   return stack stuff
+000272r 1               
+000272r 1               rpush:
+000272r 1               rpush_:
+000272r 1  A6 F1            ldx rix
+000274r 1  A5 FC            lda tos + 0
+000276r 1  9D rr rr         sta ret_zero - 2, x
+000279r 1  A5 FD            lda tos + 1
+00027Br 1  9D rr rr         sta ret_zero - 1, x
+00027Er 1  CA               dex
+00027Fr 1  CA               dex
+000280r 1  86 F1            stx rix
+000282r 1  60               rts
+000283r 1               
+000283r 1               rpull:
+000283r 1               rpull_:
+000283r 1  A6 F1            ldx rix
+000285r 1  BD rr rr         lda ret_zero + 0, x
+000288r 1  85 FC            sta tos + 0
+00028Ar 1  BD rr rr         lda ret_zero + 1, x
+00028Dr 1  85 FD            sta tos + 1
+00028Fr 1  E8               inx
+000290r 1  E8               inx
+000291r 1  86 F1            stx rix
+000293r 1  60               rts
+000294r 1               
+000294r 1               ;----------------------------------------------------------------------
+000294r 1               
+000294r 1               rshow_:
+000294r 1  A6 F1            ldx rix
+000296r 1  BD rr rr         lda ret_zero + 0, x
+000299r 1  85 FC            sta tos + 0
+00029Br 1  BD rr rr         lda ret_zero + 1, x
+00029Er 1  85 FD            sta tos + 1
+0002A0r 1  20 rr rr         jsr push_
+0002A3r 1                   ; rts
+0002A3r 1  4C rr rr         jmp link_
+0002A6r 1               
+0002A6r 1               r2d_:
+0002A6r 1  20 rr rr         jsr rpull_
+0002A9r 1  20 rr rr         jsr push_
+0002ACr 1                   ; rts
+0002ACr 1  4C rr rr         jmp link_
+0002AFr 1               
+0002AFr 1               d2r_:
+0002AFr 1  20 rr rr         jsr pull_
+0002B2r 1  20 rr rr         jsr rpush_
+0002B5r 1                   ; rts
+0002B5r 1  4C rr rr         jmp link_
+0002B8r 1               
+0002B8r 1               stkis_:
+0002B8r 1  85 FC            sta tos + 0
+0002BAr 1  A9 00            lda #0
+0002BCr 1  85 FD            sta tos + 1
+0002BEr 1  20 rr rr         jsr spush
+0002C1r 1  4C rr rr         jmp link_
+0002C4r 1               
+0002C4r 1               dat2t_:
+0002C4r 1  A5 F0            lda six
+0002C6r 1  90 F0            bcc stkis_
+0002C8r 1               
+0002C8r 1               ret2t_:
+0002C8r 1  A5 F1            lda rix
+0002CAr 1  90 EC            bcc stkis_
+0002CCr 1               
+0002CCr 1               t2dat_:
+0002CCr 1  20 rr rr         jsr spull
+0002CFr 1  A5 FC            lda tos + 0
+0002D1r 1  85 F0            sta six
+0002D3r 1  4C rr rr         jmp link_
+0002D6r 1               
+0002D6r 1               t2ret_:
+0002D6r 1  20 rr rr         jsr spull
+0002D9r 1  A5 FC            lda tos + 0
+0002DBr 1  85 F1            sta rix
+0002DDr 1  4C rr rr         jmp link_
+0002E0r 1               
+0002E0r 1               ;----------------------------------------------------------------------
+0002E0r 1               
+0002E0r 1               ;----------------------------------------------------------------------
+0002E0r 1               ; prepare for mult or divd
+0002E0r 1               opin:
+0002E0r 1  A6 F0            ldx six
+0002E2r 1                   ; pseudo tos
+0002E2r 1  BD rr rr         lda dat_zero + 0, x
+0002E5r 1  85 FA            sta wrk + 0
+0002E7r 1  BD rr rr         lda dat_zero + 1, x
+0002EAr 1  85 FB            sta wrk + 1
+0002ECr 1                   ; pseudo nos
+0002ECr 1  BD rr rr         lda dat_zero + 2, x
+0002EFr 1  8D 00 01         sta tmp + 0
+0002F2r 1  BD rr rr         lda dat_zero + 3, x
+0002F5r 1  8D 01 01         sta tmp + 1
+0002F8r 1                   ; clear results
+0002F8r 1  A9 00            lda #0
+0002FAr 1  85 FC            sta tos + 0
+0002FCr 1  85 FD            sta tos + 1
+0002FEr 1  85 FE            sta nos + 0
+000300r 1  85 FF            sta nos + 1
+000302r 1                   ; countdown
+000302r 1  A0 10            ldy #16
+000304r 1  60               rts
+000305r 1               
+000305r 1               ;----------------------------------------------------------------------
+000305r 1               ; resume from mult or divd
+000305r 1               opout:
+000305r 1                   ; copy results
+000305r 1  A6 F0            ldx six
+000307r 1  A5 FE            lda nos + 0
+000309r 1  9D rr rr         sta dat_zero + 0, x
+00030Cr 1  A5 FF            lda nos + 1
+00030Er 1  9D rr rr         sta dat_zero + 1, x
+000311r 1  A5 FC            lda tos + 0
+000313r 1  9D rr rr         sta dat_zero + 2, x
+000316r 1  A5 FD            lda tos + 1
+000318r 1  9D rr rr         sta dat_zero + 3, x
+00031Br 1                   ; rts
+00031Br 1  4C rr rr         jmp link_
+00031Er 1               
+00031Er 1               ;----------------------------------------------------------------------
+00031Er 1               ; Divide the top 2 cell of the stack
+00031Er 1               ; http://codebase64.org/doku.php?id=base:16bit_division_16-bit_result
+00031Er 1               ; dividend divisor -- result remainder
+00031Er 1               ; ( tmp wrk -- nos tos )
+00031Er 1               div_:
+00031Er 1  20 rr rr         jsr opin
+000321r 1               @loop:
+000321r 1  0E 00 01         asl tmp + 0
+000324r 1  2E 01 01         rol tmp + 1
+000327r 1  26 FC            rol tos + 0
+000329r 1  26 FD            rol tos + 1
+00032Br 1  38               sec
+00032Cr 1  A5 FC            lda tos + 0
+00032Er 1  E5 FA            sbc wrk + 0
+000330r 1  AA               tax
+000331r 1  A5 FD            lda tos + 1
+000333r 1  E5 FB            sbc wrk + 1
+000335r 1  90 07            bcc @skip
+000337r 1  85 FD            sta tos + 1
+000339r 1  86 FC            stx tos + 0
+00033Br 1  EE 00 01         inc tmp + 0
+00033Er 1               @skip:
+00033Er 1                   ; countdown
+00033Er 1  88               dey
+00033Fr 1  D0 E0            bne @loop
+000341r 1                   ; results
+000341r 1  AD 00 01         lda tmp + 0
+000344r 1  85 FE            sta nos + 0
+000346r 1  AD 01 01         lda tmp + 1
+000349r 1  85 FF            sta nos + 1
+00034Br 1                   ; ends
+00034Br 1  4C rr rr         jmp opout
+00034Er 1               
+00034Er 1               ;----------------------------------------------------------------------
+00034Er 1               ; 16-bit multiply 16x16, 32 result
+00034Er 1               ; http://codebase64.org/doku.php?id=base:16bit_multiplication_32-bit_product
+00034Er 1               ; ( multiplicand multiplier -- resultMSW resultLSW )
+00034Er 1               ; ( tmp wrk -- nos tos )
+00034Er 1               mul_:
+00034Er 1  20 rr rr         jsr opin
+000351r 1               @shift_r:
+000351r 1                   ; divide by 2
+000351r 1  46 FB            lsr wrk + 1
+000353r 1  66 FA            ror wrk + 0
+000355r 1  90 0D            bcc @rotate_r
+000357r 1                   ; add multiplicand to upper half product
+000357r 1  AA               tax
+000358r 1  18               clc
+000359r 1  AD 00 01         lda tmp + 0
+00035Cr 1  65 FC            adc tos + 0
+00035Er 1  85 FC            sta tos + 0
+000360r 1  8A               txa
+000361r 1  6D 01 01         adc tmp + 1
+000364r 1               @rotate_r:
+000364r 1                   ; rotate partial product upper to low
+000364r 1  6A               ror
+000365r 1  66 FD            ror tos + 1
+000367r 1  66 FF            ror nos + 1
+000369r 1  66 FE            ror nos + 0
+00036Br 1                   ; countdown
+00036Br 1  88               dey
+00036Cr 1  D0 E3            bne @shift_r
+00036Er 1  85 FC            sta tos + 0
+000370r 1                   ; ends
+000370r 1  4C rr rr         jmp opout
+000373r 1               
+000373r 1               
+000373r 1               ;----------------------------------------------------------------------
+000373r 1               ;
+000373r 1               ;   Forth stuff:
+000373r 1               ;   ATT: KEEP THE WORDS AT BRANCH OFFSETS (-127 to +127) or COLAPSE
+000373r 1               ;
+000373r 1               ; tos and nos are NOT keeped, all operations are by offsets
+000373r 1               ; ipt MUST be preserved and reserved for those routines
+000373r 1               ;
+000373r 1               ; HEADER "ENDS", "ENDS", F_LEAP, LEAF
+000373r 1               unnest_:  ; aka semis:
+000373r 1                   ; pull from return stack
+000373r 1  A6 F1            ldx rix
+000375r 1  BD rr rr         lda ret_zero + 0, x
+000378r 1  85 F8            sta ipt + 0
+00037Ar 1  BD rr rr         lda ret_zero + 1, x
+00037Dr 1  85 F9            sta ipt + 1
+00037Fr 1  E8               inx
+000380r 1  E8               inx
+000381r 1  86 F1            stx rix
+000383r 1               
+000383r 1               next_:
+000383r 1                   ; as is, Minimal Thread Code 6502
+000383r 1                   ; does not need compare low byte
+000383r 1                   ; save index
+000383r 1  A6 F1            ldx rix
+000385r 1  A0 00            ldy #0
+000387r 1  B1 FC            lda (tos), y
+000389r 1  85 F8            sta ipt + 0
+00038Br 1  A0 01            ldy #1
+00038Dr 1  B1 FC            lda (tos), y
+00038Fr 1  85 F9            sta ipt + 1
+000391r 1                   ; load index
+000391r 1               
+000391r 1                   ; pointer to next reference
+000391r 1                   ; CELL is 2 bytes
+000391r 1  18               clc
+000392r 1  E6 FC            inc tos + 0
+000394r 1  E6 FC            inc tos + 0
+000396r 1  D0 02            bne @end
+000398r 1  E6 FD            inc tos + 1
+00039Ar 1               @end:
+00039Ar 1               
+00039Ar 1               leaf_:
+00039Ar 1                   ; just compare high byte
+00039Ar 1  A9 00            lda #0
+00039Cr 1  C5 F9            cmp ipt + 1
+00039Er 1  F0 1B            beq jump_
+0003A0r 1               
+0003A0r 1               nest_:
+0003A0r 1                   ; aka docol
+0003A0r 1                   ; push into return stack
+0003A0r 1  A6 F1            ldx rix
+0003A2r 1  A5 FC            lda tos + 0
+0003A4r 1  9D rr rr         sta ret_zero - 2, x
+0003A7r 1  A5 FD            lda tos + 1
+0003A9r 1  9D rr rr         sta ret_zero - 1, x
+0003ACr 1  CA               dex
+0003ADr 1  CA               dex
+0003AEr 1  86 F1            stx rix
+0003B0r 1               
+0003B0r 1               link_:
+0003B0r 1                   ; next reference
+0003B0r 1  A5 F8            lda ipt + 0
+0003B2r 1  85 FC            sta tos + 0
+0003B4r 1  A5 F9            lda ipt + 1
+0003B6r 1  85 FD            sta tos + 1
+0003B8r 1  4C rr rr         jmp next_
+0003BBr 1               
+0003BBr 1               jump_:
+0003BBr 1                   ; pull link from return stack
+0003BBr 1  A6 F1            ldx rix
+0003BDr 1  BD rr rr         lda ret_zero + 0, x
+0003C0r 1  85 F8            sta ipt + 0
+0003C2r 1  BD rr rr         lda ret_zero + 1, x
+0003C5r 1  85 F9            sta ipt + 1
+0003C7r 1  E8               inx
+0003C8r 1  E8               inx
+0003C9r 1  86 F1            stx rix
+0003CBr 1                   ; do the jump
+0003CBr 1  6C FC 00         jmp (tos)
+0003CEr 1               
+0003CEr 1               
+0003CEr 1               ;----------------------------------------------------------------------
+0003CEr 1               ; extras for 6502
+0003CEr 1               ; vide eorBookV1.0.1
+0003CEr 1               
+0003CEr 1               ; set overflow bit
+0003CEr 1               setovr_:
+0003CEr 1  2C rr rr         bit @ends
+0003D1r 1               @ends:
+0003D1r 1  60               rts
+0003D2r 1               
+0003D2r 1               ; where I am
+0003D2r 1               here_:
+0003D2r 1  20 rr rr         jsr @pops
+0003D5r 1               @pops:
+0003D5r 1  68               pla
+0003D6r 1  A8               tay
+0003D7r 1  68               pla
+0003D8r 1  AA               tax
+0003D9r 1  60               rts
+0003DAr 1               
+0003DAr 1               ; Z flag is zero in NMOS6502
+0003DAr 1               nmos_:
+0003DAr 1  F8               sed
+0003DBr 1  18               clc
+0003DCr 1  A9 99            lda #$99
+0003DEr 1  69 01            adc #$01
+0003E0r 1  D8               cld
+0003E1r 1  60               rts
+0003E2r 1               
+0003E2r 1               

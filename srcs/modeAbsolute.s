@@ -123,53 +123,53 @@ drop_:
 dup_:
     ldx isp
     lda aps + 0, x
-    sta aps - 2 
+    sta aps - 2, x 
     lda aps + 1, x
-    sta aps - 1
+    sta aps - 1, x
     jmp keep_
 
 over_:
     ldx isp
     lda aps + 2, x
-    sta aps - 2 
+    sta aps - 2, x 
     lda aps + 3, x
-    sta aps - 1
+    sta aps - 1, x
     jmp keep_
 
 swap_:
     ldx isp
     lda aps + 0, x
-    sta aps - 2 
+    sta aps - 2, x 
     lda aps + 1, x
-    sta aps - 1
+    sta aps - 1, x
     lda aps + 2, x
-    sta aps + 0 
+    sta aps + 0, x 
     lda aps + 3, x
-    sta aps + 1
+    sta aps + 1, x
     lda aps - 2, x
-    sta aps + 2 
+    sta aps + 2, x 
     lda aps - 1, x
-    sta aps + 3
+    sta aps + 3, x 
     rts
 
 rot_:
     ldx isp
     lda aps + 4, x
-    sta aps - 2 
+    sta aps - 2, x 
     lda aps + 5, x
-    sta aps - 1
+    sta aps - 1, x
     lda aps + 2, x
-    sta aps + 4 
+    sta aps + 4, x 
     lda aps + 3, x
-    sta aps + 5
+    sta aps + 5, x
     lda aps + 0, x
-    sta aps + 2 
+    sta aps + 2, x 
     lda aps + 1, x
-    sta aps + 3
+    sta aps + 3, x
     lda aps - 2, x
-    sta aps + 0 
+    sta aps + 0, x 
     lda aps - 1, x
-    sta aps + 1
+    sta aps + 1, x
     rts
 
 and_:

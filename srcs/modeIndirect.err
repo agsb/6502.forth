@@ -1,0 +1,64 @@
+modeIndirect.s:158: Error: Symbol 'tmp' is undefined
+modeIndirect.s:160: Note: Expanded from here
+modeIndirect.s:172: Note: Expanded from here
+modeIndirect.s:174: Note: Expanded from here
+modeIndirect.s:127: Error: Symbol 'wrk' is undefined
+modeIndirect.s:129: Note: Expanded from here
+modeIndirect.s:134: Note: Expanded from here
+modeIndirect.s:136: Note: Expanded from here
+modeIndirect.s:153: Note: Expanded from here
+modeIndirect.s:155: Note: Expanded from here
+modeIndirect.s:167: Note: Expanded from here
+modeIndirect.s:169: Note: Expanded from here
+modeIndirect.s:86: Error: Symbol 'nos' is undefined
+modeIndirect.s:89: Note: Expanded from here
+modeIndirect.s:103: Note: Expanded from here
+modeIndirect.s:106: Note: Expanded from here
+modeIndirect.s:130: Note: Expanded from here
+modeIndirect.s:132: Note: Expanded from here
+modeIndirect.s:135: Note: Expanded from here
+modeIndirect.s:137: Note: Expanded from here
+modeIndirect.s:143: Note: Expanded from here
+modeIndirect.s:86: Note: Dropping 3 additional line infos
+modeIndirect.s:55: Error: Symbol 'vsp' is undefined
+modeIndirect.s:58: Note: Expanded from here
+modeIndirect.s:68: Note: Expanded from here
+modeIndirect.s:71: Note: Expanded from here
+modeIndirect.s:80: Note: Expanded from here
+modeIndirect.s:83: Note: Expanded from here
+modeIndirect.s:87: Note: Expanded from here
+modeIndirect.s:90: Note: Expanded from here
+modeIndirect.s:96: Note: Expanded from here
+modeIndirect.s:55: Note: Dropping 3 additional line infos
+modeIndirect.s:54: Error: Symbol 'spt' is undefined
+modeIndirect.s:61: Note: Expanded from here
+modeIndirect.s:65: Note: Expanded from here
+modeIndirect.s:72: Note: Expanded from here
+modeIndirect.s:77: Note: Expanded from here
+modeIndirect.s:84: Note: Expanded from here
+modeIndirect.s:91: Note: Expanded from here
+modeIndirect.s:95: Note: Expanded from here
+modeIndirect.s:108: Note: Expanded from here
+modeIndirect.s:54: Note: Dropping 2 additional line infos
+modeIndirect.s:20: Error: Symbol 'tos' is undefined
+modeIndirect.s:23: Note: Expanded from here
+modeIndirect.s:31: Note: Expanded from here
+modeIndirect.s:34: Note: Expanded from here
+modeIndirect.s:56: Note: Expanded from here
+modeIndirect.s:59: Note: Expanded from here
+modeIndirect.s:67: Note: Expanded from here
+modeIndirect.s:70: Note: Expanded from here
+modeIndirect.s:79: Note: Expanded from here
+modeIndirect.s:20: Note: Dropping 19 additional line infos
+modeIndirect.s:19: Error: Symbol 'vrp' is undefined
+modeIndirect.s:22: Note: Expanded from here
+modeIndirect.s:32: Note: Expanded from here
+modeIndirect.s:35: Note: Expanded from here
+modeIndirect.s:18: Error: Symbol 'rpt' is undefined
+modeIndirect.s:25: Note: Expanded from here
+modeIndirect.s:29: Note: Expanded from here
+modeIndirect.s:36: Note: Expanded from here
+modeIndirect.s:40: Note: Expanded from here
+modeIndirect.s:43: Note: Expanded from here
+modeIndirect.s:47: Note: Expanded from here
+modeIndirect.s:50: Note: Expanded from here

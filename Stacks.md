@@ -85,7 +85,7 @@ Uses the hardware stack, must split. Each stack uses cycles ~66 cc, 40 bytes of 
             STX \idz;
       .endmacro
 
-Uses the page zero as stack, must be split. Each stack uses cycles ~48 cc, 28 bytes of code and 4 bytes at zero page;
+Uses the page zero as stack, could be splited. Each stack uses cycles ~48 cc, 28 bytes of code and 4 bytes at zero page;
 
 ### page zero indirect indexed by Y
 
@@ -113,7 +113,7 @@ Uses the page zero as stack, must be split. Each stack uses cycles ~48 cc, 28 by
 
 Uses the a pointer in page zero to anywhere in memory. Stacks with up to 128 cells. Each stack uses ~50 cc, 28 bytes of code and 4 bytes at zero page. _Multiuser and Multitask systems can change the pointers anytime._ 
 
-### absolute address indexed by X or Y
+### absolute address indexed by X or Y, not splited
       
       .macro push_ax idz, value 
             LDX \idz;
@@ -152,7 +152,7 @@ Uses one absolute pointer _ptr_ to memory. Stacks with up to 128 cells. Each sta
       .endmacro    
       
       .macro pull_axs idz, value 
-            LDY \idz;
+            LDX \idz;  
             LDA ptr_lo + 0, X;
             STA \value + 0;
             LDA ptr_hi + 0, X;

@@ -10,7 +10,7 @@ a)
     --memory-model near \
     --target none \
     --debug --debug-info \
-    -o $2.out -C $2.cfg $2.s 2> $2.err | tee $2.out
+    -o $2.out -C $2.cfg $2.s 2> err | tee out
 
 
     cp $2.s $2.asm

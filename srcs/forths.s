@@ -921,13 +921,18 @@ nmos_:
 ; inside routines
 getch:
 putch:
-scan:
-skip:
-word:
 same:
 find:
 eval:
 parse:
+
+;----------------------------------------------------------------------
+; receive a char and masks it
+getch: 
+    jsr getchar
+    and #$7F    ; mask 7-bit ASCII
+    cmp #' ' 
+    rts
 
 ;---------------------------------------------------------------------
 ; receive a word between spaces
@@ -938,41 +943,34 @@ parse:
 word:
     ldy #0
 
-@wskip:  ; skip spaces
-    jsr @wgetch
-    bmi @wends
-    beq @wskip
+@skip:  ; skip spaces
+    jsr @getch
+    bmi @ends
+    beq @skip
 
-@wscan:  ; scan spaces
+@scan:  ; scan spaces
     iny
-    sta (tib), y
-    jsr @wgetch
-    bmi @wends
-    bne @wscan
+    sta (toin), y
+    jsr @getch
+    bmi @ends
+    bne @scan
 
-@wends:  ; make a c-ascii\0
+@ends:  ; make a c-ascii\0
     lda #0
-    sta (tib), y
-    sty tib
+    sta (toin), y
+    sty (toin)
     rts
 
-@wline:
+;----------------------------------------------------------------------
+line:
     ldy #0
 @loop:
     iny 
     sta (tib), y
-    jsr wgetch
+    jsr getch
     bpl @loop
     ; edit for \b \u \r ...
     rts
-
-@wgetch: ; receive a char and masks it
-    jsr getchar
-    and #$7F    ; mask 7-bit ASCII
-    cmp #' ' 
-    rts
-
-
 
 ;----------------------------------------------------------------------
 ; common must

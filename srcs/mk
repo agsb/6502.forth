@@ -12,12 +12,11 @@ a)
     --debug --debug-info \
     -o $2.out -C $2.cfg $2.s 2> err | tee out
 
-
     cp $2.s $2.asm
 
     sort -k 2 < $2.lbl > $2.lbs
 
-    grep -E '?_' $2.lbs > $2.lbf
+    # grep -E '?_' $2.lbs > $2.lbf
 
     ;;
 

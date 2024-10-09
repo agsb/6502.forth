@@ -38,8 +38,12 @@
 ;
 ;   FALSE is $0000 TRUE is $FFFF
 ;   no real SP@ or RP@ or SP! or RP! 
-;   just internal offsets SP0+idx or RP0+idx
+;   just internal offsets SP0+index or RP0+index
 ;   SP0 and RP0 could be anywhere in RAM
+;   stacks moves backwards, as -2 -1 0 1 2 3 ...
+;   0 is TOS, 1 is NOS,
+; 
+;   uses A, X, Y, caller will keep
 ;
 ;-----------------------------------------------------------------------
 
@@ -69,19 +73,6 @@
 
 .feature pc_assignment
 
-
-;   .byte idx
-;   .byte idy
-
-;   define .word sp0
-;   define .word rp0
-;
-;   .word ipt
-;   .word dpt
-;   .word usr
-;   .word tos
-;   .word nos
-;
 ;-----------------------------------------------------------------------
 ; macros for dictionary, makes:
 ;
@@ -145,20 +136,20 @@ LENGTH = 15
 ; to keep code safe by not using "fall throught".
 ; uses A, Y, X caller must saves.
 ; needs 2 levels of hardware stack
-; uses 4 bytes in page zero as temporary, TOS and NOS
-; uses 6 bytes in memory for internal use
 ;-----------------------------------------------------------------------
 .segment "ZERO"
 
 * = $F0
 
-; save x
+; save X register
 svx:    .byte $0
-; save y
+
+; save Y register
 svy:    .byte $0
 
 ; forth sp index offset
 six:    .byte $0
+
 ; forth rp index offset
 rix:    .byte $0
 
@@ -169,11 +160,11 @@ rix:    .byte $0
 
 ; dictionary next free cell pointer
 dpt:    .word $0
+
 ; instruction pointer
 ipt:    .word $0
 
-; registers
-
+; general registers
 wrk:    .word $0
 tos:    .word $0
 nos:    .word $0
@@ -182,10 +173,22 @@ tmp:    .word $0
 ;-----------------------------------------------------------------------
 .segment "CODE"
 
+; could be at page zero, less code, less cycles
+
+task: .word $0
+page: .word $0
+back: .word $0
+head: .word $0
+tail: .word $0
+
+stat: .word $0
+toin: .word $0
+base: .word $0
+here: .word $0
+
+;-----------------------------------------------------------------------
 tib:
 .res TERMINAL, $0
-
-; could be at page zero, less code, less cycles
 
 .res sps, $0
 sp0: .word $0
@@ -193,13 +196,48 @@ sp0: .word $0
 .res sps, $0
 rp0: .word $0
 
+;-----------------------------------------------------------------------
 ;
 ; leave space for page zero, hard stack,
 ; and buffer, locals, forth stacks
 ;
 * = $400
+;----------------------------------------------------------------------
+
+main:
+boot:
+    ; prepare hardware 
+    jmp cold
+
+;-----------------------------------------------------------------------
+;   return stack stuff
+;-----------------------------------------------------------------------
+rpush:
+    ldx rix
+    lda tos + 0
+    sta rp0 - 1, x
+    lda tos + 1
+    sta rp0 - 1 + sps, x
+rkeep:
+    dex
+    stx rix
+    rts
+
+;-----------------------------------------------------------------------
+rpull:
+    ldx rix
+    lda rp0 + 0, x
+    sta tos + 0
+    lda rp0 + 0 + sps, x
+    sta tos + 1
+rlose:
+    inx
+    stx rix
+    rts
+
 ;-----------------------------------------------------------------------
 ;   data stack stuff
+;-----------------------------------------------------------------------
 
 spush:
     ldx six
@@ -207,7 +245,10 @@ spush:
     sta sp0 - 1, x
     lda tos + 1
     sta sp0 - 1 + sps, x
-    jmp keep
+skeep:
+    dex
+    stx six
+    rts
 
 spull:
     ldx six
@@ -215,20 +256,23 @@ spull:
     sta tos + 0
     lda sp0 + 0 + sps, x
     sta tos + 1
-    jmp lose
+slose:
+    inx
+    stx six
+    rts
 
-spush2:
-    ldx six
-    lda nos + 0
-    sta sp0 - 1, x
-    lda nos + 1
-    sta sp0 - 1 + sps, x
-    lda tos + 0
-    sta sp0 - 2, x
-    lda tos + 1
-    sta sp0 - 2 + sps, x
-    dex
-    jmp keep
+;spush2:
+;    ldx six
+;    lda nos + 0
+;    sta sp0 - 1, x
+;    lda nos + 1
+;    sta sp0 - 1 + sps, x
+;    lda tos + 0
+;    sta sp0 - 2, x
+;    lda tos + 1
+;    sta sp0 - 2 + sps, x
+;    dex
+;    jmp keep
 
 spull2:
     ldx six
@@ -241,13 +285,17 @@ spull2:
     lda sp0 + 1 + sps, x
     sta nos + 1
     inx 
-    jmp lose
+    jmp slose
+
+;-----------------------------------------------------------------------
+; forth primitives
+;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
 ; ( w -- )
 def_word "drop", "drop", 0
     ldx six
-lose:
+lose_:
     inx
     stx six
     jmp next_
@@ -260,7 +308,7 @@ def_word "dup", "dup", 0
     sta sp0 - 1, x
     lda sp0 + 0 + sps, x
     sta sp0 - 1 + sps, x
-keep:
+keep_:
     dex
     stx six
     jmp next_
@@ -273,7 +321,7 @@ def_word "over", "over", 0
     sta sp0 - 1, x
     lda sp0 + 1 + sps, x
     sta sp0 - 1 + sps, x
-    jmp keep
+    jmp keep_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w2 w1 ) 
@@ -346,8 +394,9 @@ def_word "and", "andt", 0
     sta sp0 + 1, x
     lda sp0 + 0 + sps, x
     and sp0 + 1 + sps, x
+this_:
     sta sp0 + 1 + sps, x
-    jmp lose
+    jmp lose_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 OR w2) ) 
@@ -358,8 +407,7 @@ def_word "or", "ort", 0
     sta sp0 + 1, x
     lda sp0 + 0 + sps, x
     ora sp0 + 1 + sps, x
-    sta sp0 + 1 + sps, x
-    jmp lose
+    jmp this_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 XOR w2) ) 
@@ -370,8 +418,7 @@ def_word "xor", "xort", 0
     sta sp0 + 1, x
     lda sp0 + 0 + sps, x
     eor sp0 + 1 + sps, x
-    sta sp0 + 1 + sps, x
-    jmp lose
+    jmp this_
 
 ;-----------------------------------------------------------------------
 cpt_:
@@ -380,22 +427,20 @@ cpt_:
     pha
     sbc sp0 + 0, x
     sta sp0 + 0, x
-    sec
     pla
     sbc sp0 + 0 + sps, x
     sta sp0 + 0 + sps, x
-    ; rts
     jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- ($0000 - w1) ) 
-def_word "neg", "negate", 0
+def_word "negate", "neg", 0
     lda #$00
     jmp cpt_
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- ($FFFF - w1) ) 
-def_word "inv", "invert", 0
+def_word "invert", "inv", 0
     lda #$FF
     jmp cpt_
 
@@ -409,8 +454,7 @@ def_word "-", "sub", 0
     sta sp0 + 1, x
     lda sp0 + 0 + sps, x
     sbc sp0 + 1 + sps, x
-    sta sp0 + 1 + sps, x
-    jmp drop
+    jmp this_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 + w2) ) 
@@ -422,11 +466,10 @@ def_word "+", "add", 0
     sta sp0 + 1, x
     lda sp0 + 0 + sps, x
     adc sp0 + 1 + sps, x
-    sta sp0 + 1 + sps, x
-    jmp drop
+    jmp this_
 
 ;-----------------------------------------------------------------------
-cmpr:
+cmpr_:
     ldx six
     sec
     lda sp0 + 0, x
@@ -438,42 +481,42 @@ cmpr:
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 = w2) ) 
 def_word "=", "eq", 0
-    jsr cmpr
+    jsr cmpr_
     beq true2
     bne false2
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 < w2) ) 
 def_word "<", "lt", 0
-    jsr cmpr
+    jsr cmpr_
     bmi true2
     bpl false2
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 > w2) ) 
 def_word ">", "gt", 0
-    jsr cmpr
+    jsr cmpr_
     bpl true2
-    ; bmi false2
-    ; beq false2
+    bmi false2
+    beq false2
 
 ;-----------------------------------------------------------------------
 false2:
     lda #$00    ; false
-    beq same2
+    beq same2_
 
 ;-----------------------------------------------------------------------
 true2:
     lda #$FF    ; true
-    bne same2   ; could be falltrought
+    bne same2_   ; could be falltrought
 
 ;-----------------------------------------------------------------------
-same2:
+same2_:
     ldx six
     sta sp0 + 2, x
     sta sp0 + 2 + sps, x
     inx 
-    jmp lose
+    jmp lose_
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- (w1 << 1) ) 
@@ -510,17 +553,13 @@ to_:
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- ) *w1 = (0x00FF AND w2)
 def_word "c!", "cstore", 0
-    sty svy 
     jsr cto_
-    ldy svy
     jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- ) *w1 = w2 
 def_word "!", "store", 0
-    sty svy
     jsr to_
-    ldy svy
     jmp next_
 
 ;-----------------------------------------------------------------------
@@ -531,8 +570,7 @@ cat_:
     lda sp0 + 0 + sps, x
     sta tos + 1
     ldy #0
-    sta sp0 + 0 + sps, x
-    lda (tos, x)
+    lda (tos), y
     sta sp0 + 0, x
     rts
 
@@ -546,21 +584,17 @@ at_:
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = 0x00FF AND *w1 
 def_word "c@", "cfetch", 0
-    sty svy
     jsr cat_
-    ldy svy
     jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = *w1 
 def_word "@", "fetch", 0
-    sty svy
     jsr at_
-    ldy svy
     jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1  -- w2 ) w2 = *w1 
+; ( w1  -- w2 ) w2 = w1+1 
 def_word "1+", "incr", 0
     ldx six
     inc sp0 + 0, x
@@ -570,7 +604,7 @@ def_word "1+", "incr", 0
     jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1  -- w2 ) w2 = *w1 
+; ( w1  -- w2 ) w2 = w1-1 
 def_word "1-", "decr", 0
     ldx six
     lda sp0 + 0, x
@@ -583,19 +617,13 @@ def_word "1-", "decr", 0
 ;-----------------------------------------------------------------------
 ; ( w1 -- )  
 def_word "exec", "exec", 0
-    ldx six
-    lda sp0 + 0, x
-    pha
-    lda sp0 + 0 + sps, x
-    pha
-    php
-    rti
+    jsr spull
+    jmp (tos)
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- )  
 def_word "+!", "addto", 0
     jsr spull2
-    sty svy
     ldy #0
     clc
     lda (tos), y
@@ -605,14 +633,12 @@ def_word "+!", "addto", 0
     lda (tos), y
     adc nos + 1
     sta (tos), y
-    ldy svy
 	jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- )  
 def_word "-!", "subto", 0
     jsr spull2
-    sty svy
     ldy #0
     sec
     lda (tos), y
@@ -622,34 +648,7 @@ def_word "-!", "subto", 0
     lda (tos), y
     sbc nos + 1
     sta (tos), y
-    ldy svy
 	jmp next_
-
-;-----------------------------------------------------------------------
-;   return stack stuff
-;-----------------------------------------------------------------------
-rpush:
-    ldx rix
-    lda tos + 0
-    sta rp0 - 1, x
-    lda tos + 1
-    sta rp0 - 1 + sps, x
-rkeep:
-    dex
-    stx rix
-    rts
-
-;-----------------------------------------------------------------------
-rpull:
-    ldx rix
-    lda rp0 + 0, x
-    sta tos + 0
-    lda rp0 + 0 + sps, x
-    sta tos + 1
-rlose:
-    inx
-    stx rix
-    rts
 
 ;-----------------------------------------------------------------------
 ; ( -- w1 ) R( w1 -- )  
@@ -844,9 +843,8 @@ next_:
     iny
     lda (ipt), y
     sta wrk + 1
-    ; load index
 
-    ; pointer to next reference
+    ; to next reference
     clc 
     lda #2
     adc ipt + 0
@@ -884,6 +882,10 @@ jump_:
     ; do the jump
     jmp (wrk)
 
+goto_:
+    ; does  
+    jmp (ipt)
+
 ;-----------------------------------------------------------------------
 ; extras for 6502
 ; vide eorBookV1.0.1
@@ -913,10 +915,17 @@ nmos_:
     cld
     rts
 
-
 ;----------------------------------------------------------------------
-
-main:
+; inside routines
+getch:
+putch:
+scan:
+skip:
+word:
+same:
+find:
+eval:
+parse:
 
 ;----------------------------------------------------------------------
 ; common must

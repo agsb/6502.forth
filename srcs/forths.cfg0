@@ -16,7 +16,7 @@ SEGMENTS {
     ZERO:     load = RAM, type = zp, start = $0000;
     CODE:     load = RAM, type = rw, start = $0200;
     ONCE:     load = ROM, type = ro;
-    #VECTORS:  load = ROM, type = ro, start = $FFFA;
+    VECTORS:  load = ROM, type = ro, start = $FFFA;
 }
 
 

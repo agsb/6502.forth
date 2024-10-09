@@ -1,0 +1,6 @@
+#!/bin/sh
+
+sh mk x $1
+
+sh mk a $1
+

@@ -178,6 +178,8 @@ tmp:    .word $0
 task: .word $0
 page: .word $0
 back: .word $0
+buff: .word $0
+
 head: .word $0
 tail: .word $0
 
@@ -926,6 +928,51 @@ same:
 find:
 eval:
 parse:
+
+;---------------------------------------------------------------------
+; receive a word between spaces
+; to a buffer
+; also ends at controls
+; terminate it with \0
+; 
+word:
+    ldy #0
+
+@wskip:  ; skip spaces
+    jsr @wgetch
+    bmi @wends
+    beq @wskip
+
+@wscan:  ; scan spaces
+    iny
+    sta (tib), y
+    jsr @wgetch
+    bmi @wends
+    bne @wscan
+
+@wends:  ; make a c-ascii\0
+    lda #0
+    sta (tib), y
+    sty tib
+    rts
+
+@wline:
+    ldy #0
+@loop:
+    iny 
+    sta (tib), y
+    jsr wgetch
+    bpl @loop
+    ; edit for \b \u \r ...
+    rts
+
+@wgetch: ; receive a char and masks it
+    jsr getchar
+    and #$7F    ; mask 7-bit ASCII
+    cmp #' ' 
+    rts
+
+
 
 ;----------------------------------------------------------------------
 ; common must

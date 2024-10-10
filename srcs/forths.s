@@ -892,7 +892,7 @@ goto_:
 ; zzzz
 ;-----------------------------------------------------------------------
 ; ( -- ipt )  
-def_word "lit", "lit", 0
+def_word "lit&", "litet", 0
     ldx six
     lda ipt + 0
     sta sp0 - 1, x

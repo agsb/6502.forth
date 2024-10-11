@@ -29,6 +29,13 @@
 ; POSSIBILITY OF SUCH DAMAGE.
 ;-----------------------------------------------------------------------
 
+;/*
+;note todo:
+;
+;    1. resolver for functional accept and word, (expect is obsolete)
+;
+;*/
+
 ;-----------------------------------------------------------------------
 ;
 ;   A Forth for 6502
@@ -139,7 +146,7 @@ LENGTH = 15
 ;-----------------------------------------------------------------------
 .segment "ZERO"
 
-* = $F0
+* = $E0
 
 ; save X register
 svx:    .byte $0
@@ -153,10 +160,11 @@ six:    .byte $0
 ; forth rp index offset
 rix:    .byte $0
 
-; no data stack base pointer
-; spt:    .word $0
-; no return stack base pointer
-; rpt:    .word $0
+; data stack base pointer
+spt:    .word $0
+
+; return stack base pointer
+rpt:    .word $0
 
 ; dictionary next free cell pointer
 dpt:    .word $0
@@ -170,6 +178,16 @@ tos:    .word $0
 nos:    .word $0
 tmp:    .word $0
 
+*= $F0
+stat:   .word $0
+base:   .word $0
+here:   .word $0
+last:   .word $0
+back:   .word $0
+
+tibz:   .word $0
+toin:   .word $0
+
 ;-----------------------------------------------------------------------
 .segment "CODE"
 
@@ -181,16 +199,9 @@ boot:
 
 task: .word $0
 page: .word $0
-back: .word $0
 buff: .word $0
-
 head: .word $0
 tail: .word $0
-
-stat: .word $0
-toin: .word $0
-base: .word $0
-here: .word $0
 
 ;-----------------------------------------------------------------------
 tib:
@@ -848,13 +859,14 @@ next_:
     sta wrk + 1
 
     ; to next reference
-    clc 
-    lda #2
-    adc ipt + 0
-    sta ipt + 0
-    bne @end
-    inc tos + 1
-@end:
+    inc ipt + 0
+    bne @one
+    inc ipt + 1
+@one:
+    inc ipt + 0
+    bne @two
+    inc ipt + 1
+@two:
 
 pick_:
     ; just compare high byte
@@ -885,11 +897,16 @@ jump_:
     ; do the jump
     jmp (wrk)
 
-goto_:
-    ; does  
+;-----------------------------------------------------------------------
+; ( -- )  
+def_word ":$", "colon_code", 0
     jmp (ipt)
 
-; zzzz
+;-----------------------------------------------------------------------
+; ( -- )  
+def_word ";$", "comma_code", 0
+    jmp next_
+
 ;-----------------------------------------------------------------------
 ; ( -- ipt )  
 def_word "lit&", "litet", 0
@@ -903,7 +920,7 @@ def_word "lit&", "litet", 0
     jmp next_
 
 ;-----------------------------------------------------------------------
-; ( -- ipt )  
+; ( -- )  
 def_word "lit", "lit", 0
     ldx six 
     ldy #0
@@ -911,9 +928,46 @@ def_word "lit", "lit", 0
     sta sp0 - 1, x
     iny
     lda (ipt), y
-    sta sp0 -1 + sps, x
+    sta sp0 - 1 + sps, x
     dex
     sta six
+    ; to next reference
+    inc ipt + 0
+    bne @one
+    inc ipt + 1
+@one:
+    inc ipt + 0
+    bne @two
+    inc ipt + 1
+@two:
+    jmp next_
+
+;-----------------------------------------------------------------------
+; ( -- )  
+def_word "branch", "branch", 0
+bran_:
+    ldy #0
+    lda (ipt), y
+    sta wrk + 0
+    iny
+    lda (ipt), y
+    sta wrk + 1
+    clc
+    lda ipt + 0
+    adc wrk + 0
+    sta ipt + 0
+    lda ipt + 1
+    adc wrk + 1
+    sta ipt + 1
+    jmp next_
+
+;-----------------------------------------------------------------------
+; ( -- )  
+def_word "0branch", "zbranch", 0
+    jsr spull
+    lda tos + 0
+    and tos + 1
+    beq bran_
     jmp next_
 
 ;-----------------------------------------------------------------------
@@ -956,48 +1010,64 @@ parse:
 
 ;----------------------------------------------------------------------
 ; receive a char and masks it
-getch: 
-    jsr getchar
+getchar: 
+    jsr getch
     and #$7F    ; mask 7-bit ASCII
     cmp #' ' 
     rts
 
+;----------------------------------------------------------------------
+accept:
+    ldy #0
+@loop:
+    sta (tibz), y
+    iny 
+    jsr getchar
+    bpl @loop
+/*
+; edit for \b \u \n \r ...
+@bck:
+    cmp #'\b'
+    bne @cnc 
+    dey
+    dey
+    jmp @loop
+@cnc:
+    cmp #'\u'
+    bne @end
+    jmp getline
+*/
+
+@end:
+    lda #0
+    sta (tibz), y
+    rts
+
 ;---------------------------------------------------------------------
 ; receive a word between spaces
-; to a buffer
-; also ends at controls
-; terminate it with \0
+; to a buffer as c-str
+; note: also ends at controls
 ; 
 word:
     ldy #0
 
 @skip:  ; skip spaces
-    jsr @getch
+    jsr getchar
     bmi @ends
     beq @skip
 
 @scan:  ; scan spaces
     iny
     sta (toin), y
-    jsr @getch
+    jsr getchar
     bmi @ends
     bne @scan
 
-@ends:  ; make a c-ascii\0
-    lda #0
-    sta (toin), y
-    sty (toin)
-    rts
-
-;----------------------------------------------------------------------
-line:
+@ends:  ; 
+    dey
+    tya
     ldy #0
-@loop:
-    iny 
-    sta (tib), y
-    jsr getch
-    bpl @loop
-    ; edit for \b \u \r ...
+    sta (toin), y
     rts
 
 ;----------------------------------------------------------------------
@@ -1023,7 +1093,6 @@ warm:
     ldy sps
     sty six
     sty rix
-
 
 ends:
 ;-----------------------------------------------------------------------

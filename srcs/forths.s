@@ -48,9 +48,11 @@
 ;   just internal offsets SP0+index or RP0+index
 ;   SP0 and RP0 could be anywhere in RAM
 ;   stacks moves backwards, as -2 -1 0 1 2 3 ...
-;   0 is TOS, 1 is NOS,
+;   0 is one, 1 is two,
 ; 
 ;   uses A, X, Y, caller will keep
+;
+;   why another Forth? To learn how to.
 ;
 ;-----------------------------------------------------------------------
 
@@ -146,6 +148,7 @@ LENGTH = 15
 ;-----------------------------------------------------------------------
 .segment "ZERO"
 
+;-----------------------------------------------------------------------
 * = $E0
 
 ; save X register
@@ -155,10 +158,10 @@ svx:    .byte $0
 svy:    .byte $0
 
 ; forth sp index offset
-six:    .byte $0
+spi:    .byte $0
 
 ; forth rp index offset
-rix:    .byte $0
+rpi:    .byte $0
 
 ; data stack base pointer
 spt:    .word $0
@@ -172,13 +175,15 @@ dpt:    .word $0
 ; instruction pointer
 ipt:    .word $0
 
-; general registers
-wrk:    .word $0
-tos:    .word $0
-nos:    .word $0
-tmp:    .word $0
+; extra registers
+one:    .word $0
+two:    .word $0
+six:    .word $0
+ten:    .word $0
 
+;-----------------------------------------------------------------------
 *= $F0
+
 stat:   .word $0
 base:   .word $0
 here:   .word $0
@@ -193,7 +198,7 @@ toin:   .word $0
 
 boot:
     ; prepare hardware 
-    jmp cold
+    jmp main
 
 ; could be at page zero, less code, less cycles
 
@@ -223,30 +228,41 @@ rp0: .word $0
 
 main:
 
+;   disable interrupts
+    sei
+
+;   clear BCD
+    cld
+
+;   set real stack at $0100
+    ldx #$FF
+    txs
+
+;   enable interrupts
+    cli
+
+    jmp cold
+
 ;-----------------------------------------------------------------------
 ;   return stack stuff
 ;-----------------------------------------------------------------------
 rpush:
-    ldx rix
-    lda tos + 0
+    ldx rpi
+    dec rpi
+    lda one + 0
     sta rp0 - 1, x
-    lda tos + 1
+    lda one + 1
     sta rp0 - 1 + sps, x
-rkeep:
-    dex
-    stx rix
     rts
 
 ;-----------------------------------------------------------------------
 rpull:
-    ldx rix
+    ldx rpi
+    inc rpi
     lda rp0 + 0, x
-    sta tos + 0
+    sta one + 0
     lda rp0 + 0 + sps, x
-    sta tos + 1
-rlose:
-    inx
-    stx rix
+    sta one + 1
     rts
 
 ;-----------------------------------------------------------------------
@@ -254,52 +270,36 @@ rlose:
 ;-----------------------------------------------------------------------
 
 spush:
-    ldx six
-    lda tos + 0
+    ldx spi
+    dec spi
+    lda one + 0
     sta sp0 - 1, x
-    lda tos + 1
+    lda one + 1
     sta sp0 - 1 + sps, x
-skeep:
-    dex
-    stx six
     rts
 
 spull:
-    ldx six
+    ldx spi
+    inc spi
     lda sp0 + 0, x
-    sta tos + 0
+    sta one + 0
     lda sp0 + 0 + sps, x
-    sta tos + 1
-slose:
-    inx
-    stx six
+    sta one + 1
     rts
 
-;spush2:
-;    ldx six
-;    lda nos + 0
-;    sta sp0 - 1, x
-;    lda nos + 1
-;    sta sp0 - 1 + sps, x
-;    lda tos + 0
-;    sta sp0 - 2, x
-;    lda tos + 1
-;    sta sp0 - 2 + sps, x
-;    dex
-;    jmp keep
-
 spull2:
-    ldx six
+    ldx spi
+    inc spi
+    inc spi
     lda sp0 + 0, x
-    sta tos + 0
+    sta one + 0
     lda sp0 + 0 + sps, x
-    sta tos + 1
+    sta one + 1
     lda sp0 + 1, x
-    sta nos + 0
+    sta two + 0
     lda sp0 + 1 + sps, x
-    sta nos + 1
-    inx 
-    jmp slose
+    sta two + 1
+    rts
 
 ;-----------------------------------------------------------------------
 ; forth primitives
@@ -308,39 +308,35 @@ spull2:
 ;-----------------------------------------------------------------------
 ; ( w -- )
 def_word "drop", "drop", 0
-    ldx six
-lose_:
-    inx
-    stx six
+    inc spi
     jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w -- w w ) 
 def_word "dup", "dup", 0
-    ldx six
+    ldx spi
+    dec spi
     lda sp0 + 0, x
     sta sp0 - 1, x
     lda sp0 + 0 + sps, x
     sta sp0 - 1 + sps, x
-keep_:
-    dex
-    stx six
     jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w2 w1 w2) 
 def_word "over", "over", 0
-    ldx six
+    ldx spi
+    dec spi
     lda sp0 + 1, x
     sta sp0 - 1, x
     lda sp0 + 1 + sps, x
     sta sp0 - 1 + sps, x
-    jmp keep_
+    jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w2 w1 ) 
 def_word "swap", "swap", 0
-    ldx six
+    ldx spi
     lda sp0 + 0, x
     sta sp0 - 1, x
     lda sp0 + 0 + sps, x
@@ -358,7 +354,7 @@ def_word "swap", "swap", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 -- w3 w1 w2 ) 
 def_word "rot", "rotf", 0
-    ldx six
+    ldx spi
     lda sp0 + 2, x
     sta sp0 - 1, x
     lda sp0 + 2 + sps, x
@@ -380,7 +376,7 @@ def_word "rot", "rotf", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 -- w2 w3 w1 ) 
 def_word "rot-", "rotb", 0
-    ldx six
+    ldx spi
     lda sp0 + 0, x
     sta sp0 - 1, x
     lda sp0 + 0 + sps, x
@@ -402,7 +398,8 @@ def_word "rot-", "rotb", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 AND w2) ) 
 def_word "and", "andt", 0
-    ldx six
+    ldx spi
+    inc spi
     lda sp0 + 0, x
     and sp0 + 1, x
     sta sp0 + 1, x
@@ -410,12 +407,13 @@ def_word "and", "andt", 0
     and sp0 + 1 + sps, x
 this_:
     sta sp0 + 1 + sps, x
-    jmp lose_
+    jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 OR w2) ) 
 def_word "or", "ort", 0
-    ldx six
+    ldx spi
+    inc spi
     lda sp0 + 0, x
     ora sp0 + 1, x
     sta sp0 + 1, x
@@ -426,7 +424,8 @@ def_word "or", "ort", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 XOR w2) ) 
 def_word "xor", "xort", 0
-    ldx six
+    ldx spi
+    inc spi
     lda sp0 + 0, x
     eor sp0 + 1, x
     sta sp0 + 1, x
@@ -437,7 +436,8 @@ def_word "xor", "xort", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 - w2) ) 
 def_word "-", "sub", 0
-    ldx six
+    ldx spi
+    inc spi
     sec
     lda sp0 + 0, x
     sbc sp0 + 1, x
@@ -449,7 +449,8 @@ def_word "-", "sub", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 + w2) ) 
 def_word "+", "add", 0
-    ldx six
+    ldx spi
+    inc spi
     clc
     lda sp0 + 0, x
     adc sp0 + 1, x
@@ -460,7 +461,7 @@ def_word "+", "add", 0
 
 ;-----------------------------------------------------------------------
 cpt_:
-    ldx six
+    ldx spi
     sec
     pha
     sbc sp0 + 0, x
@@ -484,7 +485,9 @@ def_word "invert", "inv", 0
 
 ;-----------------------------------------------------------------------
 cmp_:
-    ldx six
+    ldx spi
+    inc spi
+    inc spi
     sec
     lda sp0 + 0, x
     sbc sp0 + 1, x
@@ -515,27 +518,31 @@ def_word ">", "gt", 0
     beq false2
 
 ;-----------------------------------------------------------------------
+; ( w1 -- (w1 << 1) ) 
+def_word "FALSE", "false", 0
 false2:
     lda #$00    ; false
     beq same2_
 
 ;-----------------------------------------------------------------------
+; ( w1 -- (w1 << 1) ) 
+def_word "TRUE", "true", 0
 true2:
     lda #$FF    ; true
     bne same2_   ; could be falltrought
 
 ;-----------------------------------------------------------------------
 same2_:
-    ldx six
-    sta sp0 + 2, x
-    sta sp0 + 2 + sps, x
-    inx 
-    jmp lose_
+    dec spi
+    ldx spi
+    sta sp0 + 0, x
+    sta sp0 + 0 + sps, x
+    jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- (w1 << 1) ) 
 def_word "shl", "shl", 0
-    ldx six
+    ldx spi
     asl sp0 + 0, x
     rol sp0 + 0 + sps, x
     jmp next_
@@ -543,7 +550,7 @@ def_word "shl", "shl", 0
 ;-----------------------------------------------------------------------
 ; ( w1 -- (w1 >> 1) ) 
 def_word "shr", "shr", 0
-    ldx six
+    ldx spi
     lsr sp0 + 0, x
     ror sp0 + 0 + sps, x
     jmp next_
@@ -552,16 +559,16 @@ def_word "shr", "shr", 0
 cto_:
     jsr spull2
     ldy #0
-    lda nos + 0
-    sta (tos), y
+    lda two + 0
+    sta (one), y
     rts
 
 ;-----------------------------------------------------------------------
 to_:
     jsr cto_
     iny
-    lda nos + 1
-    sta (tos), y
+    lda two + 1
+    sta (one), y
     rts
 
 ;-----------------------------------------------------------------------
@@ -578,20 +585,20 @@ def_word "!", "store", 0
 
 ;-----------------------------------------------------------------------
 cat_:
-    ldx six
+    ldx spi
     lda sp0 + 0, x
-    sta tos + 0
+    sta one + 0
     lda sp0 + 0 + sps, x
-    sta tos + 1
+    sta one + 1
     ldy #0
-    lda (tos), y
+    lda (one), y
     sta sp0 + 0, x
     rts
 
 at_:
     jsr cat_
     iny
-    lda (tos), y
+    lda (one), y
     sta sp0 + 0 + sps, x
     rts
 
@@ -610,7 +617,7 @@ def_word "@", "fetch", 0
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1+1 
 def_word "1+", "incr", 0
-    ldx six
+    ldx spi
     inc sp0 + 0, x
     bne @ends
     inc sp0 + 0 + sps, x
@@ -620,7 +627,7 @@ def_word "1+", "incr", 0
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1-1 
 def_word "1-", "decr", 0
-    ldx six
+    ldx spi
     lda sp0 + 0, x
     bne @ends
     dec sp0 + 0 + sps, x
@@ -632,7 +639,7 @@ def_word "1-", "decr", 0
 ; ( w1 -- )  
 def_word "exec", "exec", 0
     jsr spull
-    jmp (tos)
+    jmp (one)
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- )  
@@ -640,13 +647,13 @@ def_word "+!", "addto", 0
     jsr spull2
     ldy #0
     clc
-    lda (tos), y
-    adc nos + 0
-    sta (tos), y
+    lda (one), y
+    adc two + 0
+    sta (one), y
     iny
-    lda (tos), y
-    adc nos + 1
-    sta (tos), y
+    lda (one), y
+    adc two + 1
+    sta (one), y
 	jmp next_
 
 ;-----------------------------------------------------------------------
@@ -655,20 +662,20 @@ def_word "-!", "subto", 0
     jsr spull2
     ldy #0
     sec
-    lda (tos), y
-    sbc nos + 0
-    sta (tos), y
+    lda (one), y
+    sbc two + 0
+    sta (one), y
     iny
-    lda (tos), y
-    sbc nos + 1
-    sta (tos), y
+    lda (one), y
+    sbc two + 1
+    sta (one), y
 	jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( -- w1 ) R( w1 -- )  
 def_word "r@", "rat", 0
     jsr rpull
-    jsr rkeep
+    dec rpi
     jsr spush
     jmp next_
 
@@ -688,60 +695,60 @@ def_word ">r", "tor", 0
 
 ;-----------------------------------------------------------------------
 stkis_:
-    sta tos + 0
+    sta one + 0
     lda #0
-    sta tos + 1
+    sta one + 1
     jsr spush
     jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( -- w1 ) offset index of SP0 
 def_word "sp@", "spat", 0
-    lda six
+    lda spi
     bcc stkis_
 
 ;-----------------------------------------------------------------------
 ; ( -- w1 )  offset index of RP0
 def_word "rp@", "rpat", 0
-    lda rix
+    lda rpi
     bcc stkis_
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- )  offset index of SP0
-def_word "sp!", "tosp", 0
-    jsr spull
-    lda tos + 0
-    sta six
+def_word "sp!", "onep", 0
+    ldx spi
+    lda sp0 + 0, x
+    sta spi
     jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- )  offset index of RP0
 def_word "rp!", "torp", 0
-    jsr spull
-    lda tos + 0
-    sta rix
+    ldx rpi
+    lda rp0 + 0, x
+    sta rpi
     jmp next_
 
 ;-----------------------------------------------------------------------
 ; prepare for mult or divd
 opin:
-    ldx six
-    ; pseudo tos
+    ldx spi
+    ; pseudo one
     lda sp0 + 0, x
-    sta wrk + 0
+    sta ten + 0
     lda sp0 + 0 + sps, x
-    sta wrk + 1
-    ; pseudo nos
+    sta ten + 1
+    ; pseudo two
     lda sp0 + 1, x
-    sta tmp + 0
+    sta six + 0
     lda sp0 + 1 + sps, x
-    sta tmp + 1
+    sta six + 1
     ; clear results
     lda #0
-    sta tos + 0
-    sta tos + 1
-    sta nos + 0
-    sta nos + 1
+    sta one + 0
+    sta one + 1
+    sta two + 0
+    sta two + 1
     ; countdown
     ldy #16
     rts
@@ -750,14 +757,14 @@ opin:
 ; resume from mult or divd
 opout:
     ; copy results
-    ldx six
-    lda nos + 0
+    ldx spi
+    lda two + 0
     sta sp0 + 0, x
-    lda nos + 1
+    lda two + 1
     sta sp0 + 0 + sps, x
-    lda tos + 0
+    lda one + 0
     sta sp0 + 1, x
-    lda tos + 1
+    lda one + 1
     sta sp0 + 1 + sps, x
     jmp next_
 
@@ -765,33 +772,33 @@ opout:
 ; Divide the top 2 cell of the stack
 ; http://codebase64.org/doku.php?id=base:16bit_division_16-bit_result
 ; dividend divisor -- result remainder
-; ( tmp wrk -- nos tos )
+; ( six ten -- two one )
 div_:
     jsr opin
 @loop:
-    asl tmp + 0
-    rol tmp + 1
-    rol tos + 0
-    rol tos + 1
+    asl six + 0
+    rol six + 1
+    rol one + 0
+    rol one + 1
     sec
-    lda tos + 0
-    sbc wrk + 0
+    lda one + 0
+    sbc ten + 0
     tax
-    lda tos + 1
-    sbc wrk + 1
+    lda one + 1
+    sbc ten + 1
     bcc @skip
-    sta tos + 1
-    stx tos + 0
-    inc tmp + 0
+    sta one + 1
+    stx one + 0
+    inc six + 0
 @skip:
     ; countdown
     dey
     bne @loop
     ; results
-    lda tmp + 0
-    sta nos + 0
-    lda tmp + 1
-    sta nos + 1
+    lda six + 0
+    sta two + 0
+    lda six + 1
+    sta two + 1
     ; ends
     jmp opout
 
@@ -799,41 +806,40 @@ div_:
 ; 16-bit multiply 16x16, 32 result
 ; http://codebase64.org/doku.php?id=base:16bit_multiplication_32-bit_product
 ; ( multiplicand multiplier -- resultMSW resultLSW )
-; ( tmp wrk -- nos tos )
+; ( six ten -- two one )
 mul_:
     jsr opin
 @shift_r:
     ; divide by 2
-    lsr wrk + 1
-    ror wrk + 0
+    lsr ten + 1
+    ror ten + 0
     bcc @rotate_r
     ; add multiplicand to upper half product
     tax
     clc
-    lda tmp + 0
-    adc tos + 0
-    sta tos + 0
+    lda six + 0
+    adc one + 0
+    sta one + 0
     txa
-    adc tmp + 1
+    adc six + 1
 @rotate_r:
     ; rotate partial product upper to low
     ror
-    ror tos + 1
-    ror nos + 1
-    ror nos + 0
+    ror one + 1
+    ror two + 1
+    ror two + 0
     ; countdown
     dey
     bne @shift_r
-    sta tos + 0
+    sta one + 0
     ; ends
     jmp opout
-
 
 ;-----------------------------------------------------------------------
 ;
 ; Forth stuff:
 ;
-; uses wrk and ipt, all operations by offsets
+; uses one and ipt, all operations by offsets
 ; ipt MUST be preserved and reserved for those routines
 ;
 ;-----------------------------------------------------------------------
@@ -841,61 +847,62 @@ mul_:
 def_word "exit", "exit", 0
 unnest_:  ; aka semis:
     ; pull from return stack
-    ldx rix
+    ldx rpi
+    inc rpi
     lda rp0 + 0, x
     sta ipt + 0
     lda rp0 + 0 + sps, x
     sta ipt + 1
-    inx
-    stx rix
 
-    ; as is, Minimal Thread Code 6502
+    ; as is, Minimal Thread Code for 6502
+    ; this code repeats elsewhere 
+    ; but use jsr/rts will delay 12 cycles
+
 next_:
     ldy #0
     lda (ipt), y
-    sta wrk + 0
+    sta one + 0
     iny
     lda (ipt), y
-    sta wrk + 1
+    sta one + 1
 
     ; to next reference
     inc ipt + 0
-    bne @one
+    bne @p1
     inc ipt + 1
-@one:
+@p1:
     inc ipt + 0
-    bne @two
+    bne @p2
     inc ipt + 1
-@two:
+@p2:
 
 pick_:
-    ; just compare high byte
-    lda wrk + 1
-    cmp #>init
-    beq jump_
+    ; just compare MSB bytes
+    lda one + 1
+    cmp #>ends+1    ; init of heap dictionary
+    bmi jump_
 
 nest_:   
     ; aka docol
     ; push into return stack
-    ldx rix
+    ldx rpi
+    dec rpi
     lda ipt + 0
     sta rp0 - 1, x
     lda ipt + 1
     sta rp0 - 1 + sps, x
-    dex
-    stx rix
 
 link_:
     ; next reference
-    lda wrk + 0
+    lda one + 0
     sta ipt + 0
-    lda wrk + 1
+    lda one + 1
     sta ipt + 1
     jmp next_
 
 jump_:
     ; do the jump
-    jmp (wrk)
+    jmp (one)
 
 ;-----------------------------------------------------------------------
 ; ( -- )  
@@ -908,65 +915,88 @@ def_word ";$", "comma_code", 0
     jmp next_
 
 ;-----------------------------------------------------------------------
+other_:
+    ldy #0
+    lda (ipt), y
+    sta one + 0
+    iny
+    lda (ipt), y
+    sta one + 1
+    rts
+
+incpt_:
+    ; to next reference
+    inc ipt + 0
+    bne @p1
+    inc ipt + 1
+@p1:
+    inc ipt + 0
+    bne @p2
+    inc ipt + 1
+@p2:
+    rts
+
+;-----------------------------------------------------------------------
 ; ( -- ipt )  
 def_word "lit&", "litet", 0
-    ldx six
+    ldx spi
+    dec spi
     lda ipt + 0
     sta sp0 - 1, x
     lda ipt + 1
     sta sp0 - 1 + sps, x
-    dex
-    sta six
     jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( -- )  
 def_word "lit", "lit", 0
-    ldx six 
+    ldx spi 
+    dec spi
     ldy #0
     lda (ipt), y
     sta sp0 - 1, x
     iny
     lda (ipt), y
     sta sp0 - 1 + sps, x
-    dex
-    sta six
+    
     ; to next reference
     inc ipt + 0
-    bne @one
+    bne @p1
     inc ipt + 1
-@one:
+@p1:
     inc ipt + 0
-    bne @two
+    bne @p2
     inc ipt + 1
-@two:
+@p2:
     jmp next_
 
 ;-----------------------------------------------------------------------
-; ( -- )  
+; ( -- )    branch by a word offset  
 def_word "branch", "branch", 0
 bran_:
     ldy #0
     lda (ipt), y
-    sta wrk + 0
+    sta one + 0
     iny
     lda (ipt), y
-    sta wrk + 1
+    sta one + 1
+
     clc
     lda ipt + 0
-    adc wrk + 0
+    adc one + 0
     sta ipt + 0
     lda ipt + 1
-    adc wrk + 1
+    adc one + 1
     sta ipt + 1
     jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( -- )  
 def_word "0branch", "zbranch", 0
-    jsr spull
-    lda tos + 0
-    and tos + 1
+    ldx spi
+    dec spi
+    lda sp0 + 0, x
+    and sp0 + 0 + sps, x
     beq bran_
     jmp next_
 
@@ -1074,26 +1104,16 @@ word:
 ; common must
 ;
 cold:
-;   disable interrupts
-    sei
-
-;   clear BCD
-    cld
-
-;   set real stack at $0100
-    ldx #$FF
-    txs
-
-;   enable interrupts
-    cli
 
 ;-----------------------------------------------------------------------
 warm:
 
     ldy sps
-    sty six
-    sty rix
+    sty spi
+    sty rpi
 
+;-----------------------------------------------------------------------
+; BEWARE, MUST BE AT END! MINIMAL THREAD CODE DEPENDS ON IT!
 ends:
 ;-----------------------------------------------------------------------
-init:
+

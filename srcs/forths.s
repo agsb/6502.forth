@@ -507,15 +507,14 @@ def_word "=", "eq", 0
 def_word "<", "lt", 0
     jsr cmp_
     bmi true2
-    bpl false2
+    bcs false2
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 > w2) ) 
 def_word ">", "gt", 0
     jsr cmp_
     bpl true2
-    bmi false2
-    beq false2
+    bcc false2
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- (w1 << 1) ) 

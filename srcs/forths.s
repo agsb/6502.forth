@@ -714,7 +714,7 @@ def_word "rp@", "rpat", 0
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- )  offset index of SP0
-def_word "sp!", "onep", 0
+def_word "sp!", "tosp", 0
     ldx spi
     lda sp0 + 0, x
     sta spi

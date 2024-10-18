@@ -235,7 +235,7 @@ main:
     cld
 
 ;   set real stack at $0100
-    ldx #$FF
+    ldx #$00
     txs
 
 ;   enable interrupts
@@ -636,6 +636,16 @@ def_word "1-", "decr", 0
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- )  
+def_word "cell", "cell", 0
+    lda #2
+    sta one + 0
+    lda #0
+    sta one + 1
+    jsr spush
+    jmp next_
+
+;-----------------------------------------------------------------------
+; ( w1 -- )  
 def_word "exec", "exec", 0
     jsr spull
     jmp (one)
@@ -841,6 +851,8 @@ mul_:
 ; uses one and ipt, all operations by offsets
 ; ipt MUST be preserved and reserved for those routines
 ;
+; as is, Minimal Thread Code for 6502
+;
 ;-----------------------------------------------------------------------
 ; ( -- )  
 def_word "exit", "exit", 0
@@ -853,7 +865,6 @@ unnest_:  ; aka semis:
     lda rp0 + 0 + sps, x
     sta ipt + 1
 
-    ; as is, Minimal Thread Code for 6502
     ; this code repeats elsewhere 
     ; but use jsr/rts will delay 12 cycles
 
@@ -937,7 +948,7 @@ incpt_:
 
 ;-----------------------------------------------------------------------
 ; ( -- ipt )  
-def_word "lit&", "litet", 0
+def_word "lit@", "litat", 0
     ldx spi
     dec spi
     lda ipt + 0
@@ -1037,6 +1048,123 @@ find:
 eval:
 parse:
 
+
+
+; for feedback
+    lda stat + 0
+    bne resolve
+    lda #'O'
+    jsr putchar
+    lda #'K'
+    jsr putchar
+    lda #10
+    sr putchar
+
+resolve:
+; get a token
+    jsr token
+
+find:
+; load last
+    lda last + 1
+    sta two + 1
+    lda last + 0
+    sta two + 0
+    
+@loop:
+; lsb linked list
+    lda two + 0
+    sta wrd + 0
+
+; verify \0x0
+    ora two + 1
+    beq abort
+
+;   maybe to place a code for number? 
+;   but not for now.
+
+;;   uncomment for feedback, comment out "beq abort" above
+;    lda #'?'
+;    jsr putchar
+;    lda #'?'
+;    jsr putchar
+;    lda #10
+;    jsr putchar
+;    jmp abort  ; end of dictionary, no more words to search, abort
+
+@each:    
+
+; msb linked list
+    lda two + 1
+    sta wrd + 1
+
+; update next link 
+    ldx #(wrd) ; from 
+    ldy #(two) ; into
+    jsr copyfrom
+
+; compare words
+    ldy #0
+
+; save the flag, first byte is (size and flag) 
+    lda (wrd), y
+    sta stat + 1
+
+; compare chars
+@equal:
+    lda (tout), y
+; space ends
+    cmp #32  
+    beq @done
+; verify 
+    sec
+    sbc (wrd), y     
+; clean 7-bit ascii
+    asl        
+    bne @loop
+
+; next char
+    iny
+    bne @equal
+
+@done:
+; update wrd
+    tya
+    ;; ldx #(wrd) ; set already
+    ;; addwx also clear carry
+    jsr addwx
+    
+eval:
+; executing ? if == \0
+    lda stat + 0   
+    beq execute
+
+; immediate ? if < \0
+    lda stat + 1   
+    bmi immediate      
+
+compile:
+
+    ; lda #'C'
+    ; jsr putchar
+
+    jsr wcomma
+
+    bcc resolve
+
+immediate:
+execute:
+
+    ; lda #'E'
+    ; jsr putchar
+
+    lda #>resolvept
+    sta ipt + 1
+    lda #<resolvept
+    sta ipt + 0
+
+    jmp pick
+
 ;----------------------------------------------------------------------
 ; receive a char and masks it
 getchar: 
@@ -1046,6 +1174,7 @@ getchar:
     rts
 
 ;----------------------------------------------------------------------
+; accept an asciiz line 
 accept:
     ldy #0
 @loop:
@@ -1053,21 +1182,26 @@ accept:
     iny 
     jsr getchar
     bpl @loop
-/*
 ; edit for \b \u \n \r ...
 @bck:
     cmp #'\b'
     bne @cnc 
+    jmp @ctl
+@cnc:
+    cmp #'\u'
+    beq accept
+@nl:
+    cmp #'\n'
+    beq @end
+@cr:
+    cmp #'\r'
+    beq @end
+@ctl:
     dey
     dey
     jmp @loop
-@cnc:
-    cmp #'\u'
-    bne @end
-    jmp getline
-*/
-
 @end:
+    dey
     lda #0
     sta (tibz), y
     rts
@@ -1092,7 +1226,7 @@ word:
     bmi @ends
     bne @scan
 
-@ends:  ; 
+@ends:  ;  store lenght at head
     dey
     tya
     ldy #0
@@ -1104,12 +1238,34 @@ word:
 ;
 cold:
 
-;-----------------------------------------------------------------------
+;----------------------------------------------------------------------
 warm:
+; link list of headers
+    lda #>h_exit
+    sta last + 1
+    lda #<h_exit
+    sta last + 0
 
-    ldy sps
-    sty spi
-    sty rpi
+; next heap free cell, at 256-page:
+    lda #>ends + 1
+    sta here + 1
+    lda #0
+    sta here + 0
+
+;---------------------------------------------------------------------
+; supose never change
+reset:
+    ldy #>tib
+    sty toin + 1
+    sty tout + 1
+
+abort:
+    ldx #0
+    stx spi           
+
+abort:
+    ldx #0
+    stx rpi           
 
 ;-----------------------------------------------------------------------
 ; BEWARE, MUST BE AT END! MINIMAL THREAD CODE DEPENDS ON IT!

@@ -151,10 +151,10 @@ LENGTH = 15
 ;-----------------------------------------------------------------------
 * = $E0
 
-; save X register
+; saved X register
 svx:    .byte $0
 
-; save Y register
+; saved Y register
 svy:    .byte $0
 
 ; forth sp index offset
@@ -164,10 +164,10 @@ spi:    .byte $0
 rpi:    .byte $0
 
 ; data stack base pointer
-spt:    .word $0
+;spt:    .word $0
 
 ; return stack base pointer
-rpt:    .word $0
+;rpt:    .word $0
 
 ; dictionary next free cell pointer
 dpt:    .word $0
@@ -200,8 +200,6 @@ boot:
     ; prepare hardware 
     jmp main
 
-; could be at page zero, less code, less cycles
-
 task: .word $0
 page: .word $0
 buff: .word $0
@@ -211,6 +209,8 @@ tail: .word $0
 ;-----------------------------------------------------------------------
 tib:
 .res TERMINAL, $0
+
+; could be at page zero, less code, less cycles
 
 .res sps, $0
 sp0: .word $0
@@ -241,7 +241,38 @@ main:
 ;   enable interrupts
     cli
 
+; init forth
+
     jmp cold
+
+;-----------------------------------------------------------------------
+; extras for 6502
+; vide eorBookV1.0.1
+
+; set overflow bit
+setovr_:
+    bit @ends
+@ends:
+    rts
+
+; where I am
+here_:
+    jsr @pops
+@pops:
+    pla
+    tay
+    pla
+    tax
+    rts
+
+; Z flag is zero in NMOS6502
+nmos_:
+    sed
+    clc
+    lda #$99
+    adc #$01
+    cld
+    rts
 
 ;-----------------------------------------------------------------------
 ;   return stack stuff
@@ -871,10 +902,10 @@ unnest_:  ; aka semis:
 next_:
     ldy #0
     lda (ipt), y
-    sta one + 0
+    sta ten + 0
     iny
     lda (ipt), y
-    sta one + 1
+    sta ten + 1
 
     ; to next reference
     inc ipt + 0
@@ -888,7 +919,7 @@ next_:
 
 pick_:
     ; just compare MSB bytes
-    lda one + 1
+    lda ten + 1
     cmp #>ends+1    ; init of heap dictionary
     bmi jump_
 
@@ -904,15 +935,15 @@ nest_:
 
 link_:
     ; next reference
-    lda one + 0
+    lda ten + 0
     sta ipt + 0
-    lda one + 1
+    lda ten + 1
     sta ipt + 1
     jmp next_
 
 jump_:
     ; do the jump
-    jmp (one)
+    jmp (ten)
 
 ;-----------------------------------------------------------------------
 ; ( -- )  
@@ -920,31 +951,9 @@ def_word ":$", "colon_code", 0
     jmp (ipt)
 
 ;-----------------------------------------------------------------------
-; ( -- )  
+; ( -- ) zzzz must compile jmp next_  
 def_word ";$", "comma_code", 0
     jmp next_
-
-;-----------------------------------------------------------------------
-other_:
-    ldy #0
-    lda (ipt), y
-    sta one + 0
-    iny
-    lda (ipt), y
-    sta one + 1
-    rts
-
-incpt_:
-    ; to next reference
-    inc ipt + 0
-    bne @p1
-    inc ipt + 1
-@p1:
-    inc ipt + 0
-    bne @p2
-    inc ipt + 1
-@p2:
-    rts
 
 ;-----------------------------------------------------------------------
 ; ( -- ipt )  
@@ -1011,35 +1020,6 @@ bran_:
     sta ipt + 1
     jmp next_
 
-;-----------------------------------------------------------------------
-; extras for 6502
-; vide eorBookV1.0.1
-
-; set overflow bit
-setovr_:
-    bit @ends
-@ends:
-    rts
-
-; where I am
-here_:
-    jsr @pops
-@pops:
-    pla
-    tay
-    pla
-    tax
-    rts
-
-; Z flag is zero in NMOS6502
-nmos_:
-    sed
-    clc
-    lda #$99
-    adc #$01
-    cld
-    rts
-
 ; OK = 1
 
 .ifdef OK
@@ -1083,14 +1063,14 @@ find:
 ;   maybe to place a code for number? 
 ;   but not for now.
 
-;;   uncomment for feedback, comment out "beq abort" above
-;    lda #'?'
-;    jsr putchar
-;    lda #'?'
-;    jsr putchar
-;    lda #10
-;    jsr putchar
-;    jmp abort  ; end of dictionary, no more words to search, abort
+;   uncomment for feedback, comment out "beq abort" above
+    lda #'?'
+    jsr putchar
+    lda #'?'
+    jsr putchar
+    lda #10
+    jsr putchar
+    jmp abort  ; end of dictionary, no more words to search, abort
 
 @each:    
 

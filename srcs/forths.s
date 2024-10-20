@@ -969,6 +969,7 @@ def_word "lit", "lit", 0
     lda (ipt), y
     sta sp0 - 1 + sps, x
     
+bump_:
     ; to next reference
     inc ipt + 0
     bne @p1
@@ -979,6 +980,16 @@ def_word "lit", "lit", 0
     inc ipt + 1
 @p2:
     jmp next_
+
+;-----------------------------------------------------------------------
+; ( -- )  
+def_word "0branch", "zbranch", 0
+    ldx spi
+    inc spi
+    lda sp0 + 0, x
+    and sp0 + 0 + sps, x
+    beq bran_
+    bne bump_
 
 ;-----------------------------------------------------------------------
 ; ( -- )    branch by a word offset  
@@ -998,16 +1009,6 @@ bran_:
     lda ipt + 1
     adc one + 1
     sta ipt + 1
-    jmp next_
-
-;-----------------------------------------------------------------------
-; ( -- )  
-def_word "0branch", "zbranch", 0
-    ldx spi
-    dec spi
-    lda sp0 + 0, x
-    and sp0 + 0 + sps, x
-    beq bran_
     jmp next_
 
 ;-----------------------------------------------------------------------
@@ -1039,16 +1040,15 @@ nmos_:
     cld
     rts
 
+; OK = 1
+
+.ifdef OK
 ;----------------------------------------------------------------------
 ; inside routines
 getch:
 putch:
 same:
-find:
-eval:
 parse:
-
-
 
 ; for feedback
     lda stat + 0
@@ -1058,7 +1058,7 @@ parse:
     lda #'K'
     jsr putchar
     lda #10
-    sr putchar
+    jsr putchar
 
 resolve:
 ; get a token
@@ -1112,7 +1112,7 @@ find:
 
 ; compare chars
 @equal:
-    lda (tout), y
+    lda (tou), y
 ; space ends
     cmp #32  
     beq @done
@@ -1148,9 +1148,9 @@ compile:
     ; lda #'C'
     ; jsr putchar
 
-    jsr wcomma
+    ;jsr wcomma
 
-    bcc resolve
+    ;bcc resolve
 
 immediate:
 execute:
@@ -1163,7 +1163,7 @@ execute:
     lda #<resolvept
     sta ipt + 0
 
-    jmp pick
+    jmp pick_
 
 ;----------------------------------------------------------------------
 ; receive a char and masks it
@@ -1184,17 +1184,17 @@ accept:
     bpl @loop
 ; edit for \b \u \n \r ...
 @bck:
-    cmp #'\b'
+    cmp #8  ;   \t
     bne @cnc 
     jmp @ctl
 @cnc:
-    cmp #'\u'
+    cmp #24 ;   '\u'
     beq accept
 @nl:
-    cmp #'\n'
+    cmp #10 ;   '\n'
     beq @end
 @cr:
-    cmp #'\r'
+    cmp #13 ;   '\r'
     beq @end
 @ctl:
     dey
@@ -1233,6 +1233,8 @@ word:
     sta (toin), y
     rts
 
+.endif
+
 ;----------------------------------------------------------------------
 ; common must
 ;
@@ -1255,15 +1257,15 @@ warm:
 ;---------------------------------------------------------------------
 ; supose never change
 reset:
-    ldy #>tib
-    sty toin + 1
-    sty tout + 1
+    ;ldy #>tib
+    ;sty toin + 1
+    ;sty tout + 1
 
 abort:
     ldx #0
     stx spi           
 
-abort:
+quit:
     ldx #0
     stx rpi           
 
@@ -1271,4 +1273,3 @@ abort:
 ; BEWARE, MUST BE AT END! MINIMAL THREAD CODE DEPENDS ON IT!
 ends:
 ;-----------------------------------------------------------------------
-

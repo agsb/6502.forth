@@ -491,6 +491,48 @@ def_word "+", "add", 0
     jmp this_
 
 ;-----------------------------------------------------------------------
+; ( w1 w2 -- (w1 + w2) ) 
+def_word "D+", "dadd", 0
+    ldx spi
+    inc spi
+    inc spi
+    clc
+    lda sp0 + 0, x
+    adc sp0 + 2, x
+    sta sp0 + 2, x
+    lda sp0 + 0 + sps, x
+    adc sp0 + 2 + sps, x
+    sta sp0 + 2 + sps, x
+    lda sp0 + 1, x
+    adc sp0 + 3, x
+    sta sp0 + 3, x
+    lda sp0 + 1 + sps, x
+    adc sp0 + 3 + sps, x
+    sta sp0 + 3 + sps, x
+    jmp next_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- (w1 + w2) ) 
+def_word "D-", "dsub", 0
+    ldx spi
+    inc spi
+    inc spi
+    sec
+    lda sp0 + 0, x
+    sbc sp0 + 2, x
+    sta sp0 + 2, x
+    lda sp0 + 0 + sps, x
+    sbc sp0 + 2 + sps, x
+    sta sp0 + 2 + sps, x
+    lda sp0 + 1, x
+    sbc sp0 + 3, x
+    sta sp0 + 3, x
+    lda sp0 + 1 + sps, x
+    sbc sp0 + 3 + sps, x
+    sta sp0 + 3 + sps, x
+    jmp next_
+
+;-----------------------------------------------------------------------
 cpt_:
     ldx spi
     sec
@@ -525,6 +567,37 @@ cmp_:
     lda sp0 + 0 + sps, x
     sbc sp0 + 1 + sps, x
     rts
+
+;-----------------------------------------------------------------------
+; ( w1 -- (w1 == 0) ) 
+def_word "0=", "eqz", 0
+    ldx spi
+    inc spi
+    lda sp0 + 0, x
+    ora sp0 + 0 + sps, x
+    beq true2
+    bne false2
+
+;-----------------------------------------------------------------------
+; ( w1 -- (w1 < 0) ) 
+def_word "0<", "ltz", 0
+    ldx spi
+    inc spi
+    lda sp0 + 0 + sps, x
+    asl a
+    bcs true2
+    bcc false2
+
+;-----------------------------------------------------------------------
+; ( w1 -- (w1 < 0) ) 
+def_word "0>", "gtz", 0
+    ldx spi
+    inc spi
+    lda sp0 + 0 + sps, x
+    asl a
+    bcs false2
+    beq false2
+    bcc true2
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 = w2) ) 
@@ -888,7 +961,7 @@ mul_:
 ; ( -- )  
 def_word "exit", "exit", 0
 unnest_:  ; aka semis:
-    ; pull from return stack
+    ; pull from return stack, also semis ;S
     ldx rpi
     inc rpi
     lda rp0 + 0, x
@@ -996,7 +1069,7 @@ def_word "0branch", "zbranch", 0
     ldx spi
     inc spi
     lda sp0 + 0, x
-    and sp0 + 0 + sps, x
+    ora sp0 + 0 + sps, x
     beq bran_
     bne bump_
 

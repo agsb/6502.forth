@@ -44,22 +44,27 @@
 ;   stacks LSB and MSB splited by STACKSIZE
 ;
 ;   FALSE is $0000 TRUE is $FFFF
-;   no real SP@ or RP@ or SP! or RP! 
-;   just internal offsets SP0+index or RP0+index
 ;   SP0 and RP0 could be anywhere in RAM
+;   no real absolute memory address for SP@ or RP@ or SP! or RP! 
+;   just internal offsets SP0+index or RP0+index
 ;   stacks moves backwards, as -2 -1 0 1 2 3 ...
-;   0 is one, 1 is two,
+;   0 is TOS, 1 is NOS,
 ; 
 ;   uses A, X, Y, caller will keep
 ;
 ;   why another Forth? To learn how to.
 ;
+;   the 'bare bones' BIOS must have:
+;       millis,     return milliseconds
+;       getch,      get a byte from USART/COMM port
+;       putch,      put a byte into USART/COMM port
+;       getio,      get a byte from a GPIO/DEVICE
+;       putio,      put a byte into a GPIO/DEVICE
+;
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
-;
-;  ca65 assembler specifics
-;
+;  init of ca65 assembler specifics
 ;----------------------------------------------------------------------
 
 ; identifiers
@@ -117,39 +122,50 @@ hcount .set 0
 H0000 = 0
 
 ;-----------------------------------------------------------------------
+;  end of ca65 assembler specifics
+;-----------------------------------------------------------------------
+
+;-----------------------------------------------------------------------
 ;    constants
 
 FALSE = 0
 
 TRUE = -1
 
+; cell size, two bytes, 16-bit
+CELL = 2
+
 ; forth stack size
 STACKSIZE = $24
 
+; temporary just for easy typing
 sps = STACKSIZE
 
-; forth terminal input area
-TERMINAL  = $50
-
-; cell size, two bytes, 16-bit
-CELL = 2
+; forth TIB terminal input area
+TERMINAL  = $50 + 4
 
 ; highlander, immediate flag.
 FLAG_IMM = 1<<7
 
-; length of words
+; highlander, restrict for compiler flag.
+; FLAG_CPL = 1<<6
+
+; highlander, reserved flag.
+; FLAG_RSV = 1<<5
+
+; maximum length of words
 LENGTH = 15
 
 ;-----------------------------------------------------------------------
 ; Forth like functions
-; to keep code safe by not using "fall throught".
 ; uses A, Y, X caller must saves.
 ; needs 2 levels of hardware stack
+; to keep code safe by not using "fall throught".
 ;-----------------------------------------------------------------------
 .segment "ZERO"
 
 ;-----------------------------------------------------------------------
-* = $E0
+* = $E0     ; internal use
 
 ; saved X register
 svx:    .byte $0
@@ -163,35 +179,36 @@ spi:    .byte $0
 ; forth rp index offset
 rpi:    .byte $0
 
-; data stack base pointer
-;spt:    .word $0
-
-; return stack base pointer
-;rpt:    .word $0
-
-; dictionary next free cell pointer
-dpt:    .word $0
-
 ; instruction pointer
 ipt:    .word $0
 
-; extra registers
+; dictionary pointer
+dpt:    .word $0
+
+; data stack base pointer
+; spt:    .word $0
+
+; return stack base pointer
+; rpt:    .word $0
+
+; extra dummies
 one:    .word $0
 two:    .word $0
 six:    .word $0
 ten:    .word $0
 
 ;-----------------------------------------------------------------------
-*= $F0
+*= $F0  ; external use
 
-stat:   .word $0
-base:   .word $0
-here:   .word $0
-last:   .word $0
-back:   .word $0
+stat:   .word $0    ; state of Forth, 0 is interpret, 1 is compiling
+base:   .word $0    ; number radix for input and output
+last:   .word $0    ; reference to last word, link field
+here:   .word $0    ; reference to next free cell on heap
 
-tibz:   .word $0
-toin:   .word $0
+user:   .word $0    ; start of user area
+back:   .word $0    ; keep the here while compiling
+tibz:   .word $0    ; TIB
+toin:   .word $0    ; TIB reference to next word
 
 ;-----------------------------------------------------------------------
 .segment "CODE"
@@ -241,7 +258,9 @@ main:
 ;   enable interrupts
     cli
 
-; init forth
+;   extended init functions 
+    
+;   init forth
 
     jmp cold
 
@@ -258,11 +277,10 @@ setovr_:
 ; where I am
 here_:
     jsr @pops
+    ; lda ($100), x
+    ; lda ($101), x
 @pops:
-    pla
-    tay
-    pla
-    tax
+    tsx
     rts
 
 ; Z flag is zero in NMOS6502
@@ -430,7 +448,6 @@ def_word "rot-", "rotb", 0
 ; ( w1 w2 -- (w1 AND w2) ) 
 def_word "and", "andt", 0
     ldx spi
-    inc spi
     lda sp0 + 0, x
     and sp0 + 1, x
     sta sp0 + 1, x
@@ -438,13 +455,13 @@ def_word "and", "andt", 0
     and sp0 + 1 + sps, x
 this_:
     sta sp0 + 1 + sps, x
+    inc spi
     jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 OR w2) ) 
 def_word "or", "ort", 0
     ldx spi
-    inc spi
     lda sp0 + 0, x
     ora sp0 + 1, x
     sta sp0 + 1, x
@@ -456,7 +473,6 @@ def_word "or", "ort", 0
 ; ( w1 w2 -- (w1 XOR w2) ) 
 def_word "xor", "xort", 0
     ldx spi
-    inc spi
     lda sp0 + 0, x
     eor sp0 + 1, x
     sta sp0 + 1, x
@@ -468,7 +484,6 @@ def_word "xor", "xort", 0
 ; ( w1 w2 -- (w1 - w2) ) 
 def_word "-", "sub", 0
     ldx spi
-    inc spi
     sec
     lda sp0 + 0, x
     sbc sp0 + 1, x
@@ -481,7 +496,6 @@ def_word "-", "sub", 0
 ; ( w1 w2 -- (w1 + w2) ) 
 def_word "+", "add", 0
     ldx spi
-    inc spi
     clc
     lda sp0 + 0, x
     adc sp0 + 1, x
@@ -807,6 +821,9 @@ def_word ">r", "tor", 0
     jmp next_
 
 ;-----------------------------------------------------------------------
+;   specifics for this implementation, 
+;   address of sp0 and rp0 are fixed, 
+;   just returns offsets
 stkis_:
     sta one + 0
     lda #0
@@ -1019,17 +1036,33 @@ jump_:
     jmp (ten)
 
 ;-----------------------------------------------------------------------
-; ( -- )  
+; ( -- )  for jump into a native code
 def_word ":$", "colon_code", 0
     jmp (ipt)
 
 ;-----------------------------------------------------------------------
-; ( -- ) zzzz must compile jmp next_  
+; ( -- ) zzzz for return from native code 
+; the code is not inner mode ! must compile natice code for it
 def_word ";$", "comma_code", 0
+    jsr @pops
     jmp next_
 
+; some magics
+@pops:
+    tsx
+    inx 
+    clc
+    lda ($100), x
+    adc #3
+    sta ipt + 0
+    inx 
+    lda ($100), x
+    adc #0
+    sta ipt + 1
+    rts
+
 ;-----------------------------------------------------------------------
-; ( -- ipt )  
+; ( -- ipt ) zzzz why need this ? 
 def_word "lit@", "litat", 0
     ldx spi
     dec spi
@@ -1096,6 +1129,17 @@ bran_:
 ; OK = 1
 
 .ifdef OK
+
+quit_:
+;   uncomment for feedback, comment out "beq abort" above
+    lda #'?'
+    jsr putchar
+    lda #'?'
+    jsr putchar
+    lda #10
+    jsr putchar
+    jmp abort  ; end of dictionary, no more words to search, abort
+
 ;----------------------------------------------------------------------
 ; inside routines
 getch:
@@ -1127,34 +1171,38 @@ find:
 @loop:
 ; lsb linked list
     lda two + 0
-    sta wrd + 0
+    sta six + 0
 
 ; verify \0x0
     ora two + 1
-    beq abort
-
-;   maybe to place a code for number? 
-;   but not for now.
-
-;   uncomment for feedback, comment out "beq abort" above
-    lda #'?'
-    jsr putchar
-    lda #'?'
-    jsr putchar
-    lda #10
-    jsr putchar
-    jmp abort  ; end of dictionary, no more words to search, abort
+; not in dictionary
+; maybe a number? 
+; later doit zzzz
+    beq quit_
 
 @each:    
 
 ; msb linked list
     lda two + 1
-    sta wrd + 1
+    sta six + 1
 
 ; update next link 
-    ldx #(wrd) ; from 
-    ldy #(two) ; into
-    jsr copyfrom
+    ldy #0
+    ldy (six), y
+    sta two + 0
+    iny 
+    ldy (six), y
+    sta two + 1
+
+; update to c-name    
+    inc six + 0
+    bne @p1
+    inc six + 1
+@p1:
+    inc six + 0
+    bne @p2
+    inc six + 1
+@p2:
 
 ; compare words
     ldy #0

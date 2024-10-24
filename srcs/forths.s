@@ -114,6 +114,37 @@ hcount .set hcount + 1
 makelabel "", label
 .endmacro
 
+; arguments in page zero could be routines
+
+.macro addtwo wrd
+    inc wrd + 0
+    bne @p1
+    inc wrd + 1
+@p1:
+    inc wrd + 0
+    bne @p2
+    inc wrd + 1
+@p2:
+.endmacro
+    
+.macro copyinto from, into
+    ldy #0
+    lda from + 0
+    sta (into), y
+    iny
+    lda from + 1
+    sta (into), y
+.endmacro
+
+.macro copyfrom from, into
+    ldy #0
+    lda (from), y
+    sta into + 0
+    iny
+    lda (from), y
+    sta into + 1
+.endmacro
+
 ;-----------------------------------------------------------------------
 ; variables for macros
 
@@ -992,10 +1023,10 @@ unnest_:  ; aka semis:
 next_:
     ldy #0
     lda (ipt), y
-    sta ten + 0
+    sta one + 0
     iny
     lda (ipt), y
-    sta ten + 1
+    sta one + 1
 
     ; to next reference
     inc ipt + 0
@@ -1009,7 +1040,7 @@ next_:
 
 pick_:
     ; just compare MSB bytes
-    lda ten + 1
+    lda one + 1
     cmp #>ends+1    ; init of heap dictionary
     bmi jump_
 
@@ -1025,15 +1056,15 @@ nest_:
 
 link_:
     ; next reference
-    lda ten + 0
+    lda one + 0
     sta ipt + 0
-    lda ten + 1
+    lda one + 1
     sta ipt + 1
     jmp next_
 
 jump_:
     ; do the jump
-    jmp (ten)
+    jmp (one)
 
 ;-----------------------------------------------------------------------
 ; ( -- )  for jump into a native code
@@ -1086,14 +1117,7 @@ def_word "lit", "lit", 0
     
 bump_:
     ; to next reference
-    inc ipt + 0
-    bne @p1
-    inc ipt + 1
-@p1:
-    inc ipt + 0
-    bne @p2
-    inc ipt + 1
-@p2:
+    addtwo ipt
     jmp next_
 
 ;-----------------------------------------------------------------------
@@ -1126,10 +1150,90 @@ bran_:
     sta ipt + 1
     jmp next_
 
-; OK = 1
+;-----------------------------------------------------------------------
+; ( -- )    find a word in dictionary, return CFA or FALSE (0x0)  
+def_word "'", "tick", 0
+    jsp find_
+    jsr spush
+    jmp next_
 
-.ifdef OK
+;-----------------------------------------------------------------------
+; ( -- )    compile a word in dictionary, from TOS  
+def_word ",", "comma", 0
+    jsr spull
+    jsp coma_
+    jmp next_
 
+;-----------------------------------------------------------------------
+coma_:
+    copyinto one, here
+    addtwo here
+    rts
+
+;-----------------------------------------------------------------------
+find_:
+; load last
+    lda last + 1
+    sta two + 1
+    lda last + 0
+    sta two + 0
+    
+@loop:
+; lsb linked list
+    lda two + 0
+    sta one + 0
+    lda two + 1
+    sta one + 1
+
+; verify \0x0
+    ora two + 0
+    beq @ends
+
+@each:    
+; update next link 
+    copyfrom one, two
+
+; update to c-name    
+    addtwo one
+
+; compare words
+    ldy #0
+
+; save the flag, MSB of state is (size and flag) 
+    lda (one), y
+    sta stat + 1
+
+; compare chars
+@equal:
+    lda (two), y
+; lte space ends
+    cmp #(32 + 1)  
+    bmi @done
+
+; verify 
+    sec
+    sbc (one), y     
+; clean 7-bit ascii
+    asl        
+    bne @loop
+
+; next char
+    iny
+    bne @equal
+
+@done:
+; update to code
+    tya
+    clc
+    adc one + 0
+    sta one + 0
+    bcc @p3
+    inc one + 1
+@p3:
+@ends:
+    rts
+
+;----------------------------------------------------------------------
 quit_:
 ;   uncomment for feedback, comment out "beq abort" above
     lda #'?'
@@ -1147,9 +1251,15 @@ putch:
 same:
 parse:
 
+outerptr:
+    .word outer_
+
+outer_:
+
 ; for feedback
     lda stat + 0
     bne resolve
+
     lda #'O'
     jsr putchar
     lda #'K'
@@ -1161,81 +1271,11 @@ resolve:
 ; get a token
     jsr token
 
-find:
-; load last
-    lda last + 1
-    sta two + 1
-    lda last + 0
-    sta two + 0
+    jsr find_
+
     
-@loop:
-; lsb linked list
-    lda two + 0
-    sta six + 0
+eval_:
 
-; verify \0x0
-    ora two + 1
-; not in dictionary
-; maybe a number? 
-; later doit zzzz
-    beq quit_
-
-@each:    
-
-; msb linked list
-    lda two + 1
-    sta six + 1
-
-; update next link 
-    ldy #0
-    ldy (six), y
-    sta two + 0
-    iny 
-    ldy (six), y
-    sta two + 1
-
-; update to c-name    
-    inc six + 0
-    bne @p1
-    inc six + 1
-@p1:
-    inc six + 0
-    bne @p2
-    inc six + 1
-@p2:
-
-; compare words
-    ldy #0
-
-; save the flag, first byte is (size and flag) 
-    lda (wrd), y
-    sta stat + 1
-
-; compare chars
-@equal:
-    lda (tou), y
-; space ends
-    cmp #32  
-    beq @done
-; verify 
-    sec
-    sbc (wrd), y     
-; clean 7-bit ascii
-    asl        
-    bne @loop
-
-; next char
-    iny
-    bne @equal
-
-@done:
-; update wrd
-    tya
-    ;; ldx #(wrd) ; set already
-    ;; addwx also clear carry
-    jsr addwx
-    
-eval:
 ; executing ? if == \0
     lda stat + 0   
     beq execute
@@ -1246,22 +1286,17 @@ eval:
 
 compile:
 
-    ; lda #'C'
-    ; jsr putchar
+    jsr coma_
+    jmp outer_
 
-    ;jsr wcomma
-
-    ;bcc resolve
+ZZZZ 
 
 immediate:
 execute:
 
-    ; lda #'E'
-    ; jsr putchar
-
-    lda #>resolvept
+    lda #>outer_
     sta ipt + 1
-    lda #<resolvept
+    lda #<outer_
     sta ipt + 0
 
     jmp pick_

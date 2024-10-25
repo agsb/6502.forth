@@ -32,7 +32,6 @@
 ;/*
 ;note todo:
 ;
-;    1. resolver for functional accept and word, (expect is obsolete)
 ;
 ;*/
 
@@ -40,16 +39,20 @@
 ;
 ;   A Forth for 6502
 ;   using minimal thread code and
-;   absolute memory indirect references
+;   absolute memory indirect reference both stacks
 ;   stacks LSB and MSB splited by STACKSIZE
 ;
 ;   FALSE is $0000 TRUE is $FFFF
-;   SP0 and RP0 could be anywhere in RAM
+;   SP0 and RP0 could be fixed anywhere n RAM
 ;   no real absolute memory address for SP@ or RP@ or SP! or RP! 
 ;   just internal offsets SP0+index or RP0+index
 ;   stacks moves backwards, as -2 -1 0 1 2 3 ...
 ;   0 is TOS, 1 is NOS,
-; 
+;
+;   no use of hardware stack
+;   non-rellocable code, 
+;   non-optimized code,
+;
 ;   uses A, X, Y, caller will keep
 ;
 ;   why another Forth? To learn how to.
@@ -114,7 +117,8 @@ hcount .set hcount + 1
 makelabel "", label
 .endmacro
 
-; arguments in page zero could be routines
+; arguments must be in page zero,
+; could be routines
 
 .macro addtwo wrd
     inc wrd + 0
@@ -216,6 +220,8 @@ ipt:    .word $0
 ; dictionary pointer
 dpt:    .word $0
 
+; stacks are fixed
+
 ; data stack base pointer
 ; spt:    .word $0
 
@@ -283,7 +289,7 @@ main:
     cld
 
 ;   set real stack at $0100
-    ldx #$00
+    ldx #$FF
     txs
 
 ;   enable interrupts
@@ -303,15 +309,6 @@ main:
 setovr_:
     bit @ends
 @ends:
-    rts
-
-; where I am
-here_:
-    jsr @pops
-    ; lda ($100), x
-    ; lda ($101), x
-@pops:
-    tsx
     rts
 
 ; Z flag is zero in NMOS6502
@@ -602,18 +599,6 @@ def_word "invert", "inv", 0
     jmp cpt_
 
 ;-----------------------------------------------------------------------
-cmp_:
-    ldx spi
-    inc spi
-    inc spi
-    sec
-    lda sp0 + 0, x
-    sbc sp0 + 1, x
-    lda sp0 + 0 + sps, x
-    sbc sp0 + 1 + sps, x
-    rts
-
-;-----------------------------------------------------------------------
 ; ( w1 -- (w1 == 0) ) 
 def_word "0=", "eqz", 0
     ldx spi
@@ -645,6 +630,18 @@ def_word "0>", "gtz", 0
     bcc true2
 
 ;-----------------------------------------------------------------------
+cmp_:
+    ldx spi
+    inc spi
+    inc spi
+    sec
+    lda sp0 + 0, x
+    sbc sp0 + 1, x
+    lda sp0 + 0 + sps, x
+    sbc sp0 + 1 + sps, x
+    rts
+
+;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 = w2) ) 
 def_word "=", "eq", 0
     jsr cmp_
@@ -666,6 +663,14 @@ def_word ">", "gt", 0
     bcc false2
 
 ;-----------------------------------------------------------------------
+same2_:
+    dec spi
+    ldx spi
+    sta sp0 + 0, x
+    sta sp0 + 0 + sps, x
+    jmp next_
+
+;-----------------------------------------------------------------------
 ; ( w1 -- (w1 << 1) ) 
 def_word "FALSE", "false", 0
 false2:
@@ -677,15 +682,7 @@ false2:
 def_word "TRUE", "true", 0
 true2:
     lda #$FF    ; true
-    bne same2_   ; could be falltrought
-
-;-----------------------------------------------------------------------
-same2_:
-    dec spi
-    ldx spi
-    sta sp0 + 0, x
-    sta sp0 + 0 + sps, x
-    jmp next_
+    bne same2_  ; could be falltrought
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- (w1 << 1) ) 
@@ -830,11 +827,10 @@ def_word "-!", "subto", 0
 	jmp next_
 
 ;-----------------------------------------------------------------------
-; ( -- w1 ) R( w1 -- )  
-def_word "r@", "rat", 0
-    jsr rpull
-    dec rpi
-    jsr spush
+; ( w1 -- ) R( -- w1 )  
+def_word ">r", "tor", 0
+    jsr spull
+    jsr rpush
     jmp next_
 
 ;-----------------------------------------------------------------------
@@ -845,10 +841,11 @@ def_word "r>", "rto", 0
     jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1 -- ) R( -- w1 )  
-def_word ">r", "tor", 0
-    jsr spull
-    jsr rpush
+; ( -- w1 ) R( w1 -- )  
+def_word "r@", "rat", 0
+    jsr rpull
+    dec rpi
+    jsr spush
     jmp next_
 
 ;-----------------------------------------------------------------------
@@ -866,13 +863,13 @@ stkis_:
 ; ( -- w1 ) offset index of SP0 
 def_word "sp@", "spat", 0
     lda spi
-    bcc stkis_
+    jmp stkis_
 
 ;-----------------------------------------------------------------------
 ; ( -- w1 )  offset index of RP0
 def_word "rp@", "rpat", 0
     lda rpi
-    bcc stkis_
+    jmp stkis_
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- )  offset index of SP0

@@ -1040,7 +1040,7 @@ next_:
 pick_:
     ; just compare MSB bytes
     lda one + 1
-    cmp #>ends+1    ; init of heap dictionary
+    cmp #>ends+1    ; init of heap compose dictionary
     bmi jump_
 
 nest_:   
@@ -1072,7 +1072,7 @@ def_word ":$", "COLON_CODE", 0
 
 ;-----------------------------------------------------------------------
 ; ( -- ) zzzz for return from native code 
-; the code is not inner mode ! must compile natice code for it
+; the code is not inner mode ! must compile native code for it
 def_word ";$", "COMMA_CODE", 0
     jsr @pops
     jmp next_
@@ -1082,11 +1082,11 @@ def_word ";$", "COMMA_CODE", 0
     tsx
     inx 
     clc
-    lda $0100, x
+    lda $0100, x    ; verify zzzz code
     adc #3
     sta ipt + 0
     inx 
-    lda $0100, x
+    lda $0100, x    ; verify zzzz code
     adc #0
     sta ipt + 1
     rts
@@ -1164,12 +1164,15 @@ def_word ",", "COMMA", 0
     jmp next_
 
 ;-----------------------------------------------------------------------
+;   push a cell in heap
 coma_:
     copyinto one, here
     addtwo here
     rts
 
 ;-----------------------------------------------------------------------
+; search the dictionary for a word, returns the cfa or null
+;
 find_:
 ; load last
     lda last + 1
@@ -1247,7 +1250,9 @@ quit_:
 ; inside routines
 getch:
 putch:
+
 same:
+
 parse:
 
 outerptr:
@@ -1286,14 +1291,12 @@ compile:
     jsr coma_
     jmp outer_
 
-; ZZZZ 
-
 immediate:
 execute:
 
-    lda #>outer_
+    lda #>outerptr
     sta ipt + 1
-    lda #<outer_
+    lda #<outerptr
     sta ipt + 0
 
     jmp pick_
@@ -1407,7 +1410,7 @@ ends:
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
-;   COMPOSE WORDS
+;   COMPOSE WORDS, pre-compiled
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
@@ -1463,8 +1466,12 @@ def_word "CELL+", "CELLADD", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 --  )     
 def_word "CELLS", "CELLS", 0
-    ; cells is two
+    ; cells is two 
     .word SFHL, EXIT
+
+;-----------------------------------------------------------------------
+;   COMPOSE WORDS
+;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
 ; BEWARE, MUST BE AT END OF COMPONDS ! 

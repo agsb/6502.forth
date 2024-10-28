@@ -39,21 +39,21 @@
 ;
 ;   A(nother) Forth for 6502
 ;   using minimal thread code and
-;   absolute memory indirect reference for both stacks
+;   absolute memory indirect for both stacks
 ;
 ;   uses A, X, Y, caller will keep
 ;   no use of hardware stack
 ;   (still) non-rellocable code, 
 ;   (still) non-optimized code,
 ;
-;   stacks moves backwards, as -2 -1 0 1 2 3 ...
-;   stacks LSB and MSB splited by STACKSIZE
-;
-;   FALSE is $0000 TRUE is $FFFF
+;   FALSE is $0000 (0) TRUE is $FFFF (-1)
 ;   SP0 and RP0 could be fixed anywhere n RAM
 ;   no real absolute memory address for SP@ or RP@ or SP! or RP! 
 ;   just internal offsets SP0+index or RP0+index
+;   stacks LSB and MSB splited by STACKSIZE
+;   stacks grows backwards, as -2 -1 0 1 2 3 ...
 ;   0 is TOS, 1 is NOS,
+;   No real CFA, always next cell after c-name
 ;
 ;   why another Forth? To learn how to.
 ;
@@ -118,8 +118,16 @@ hcount .set hcount + 1
 makelabel "", label
 .endmacro
 
+; generic macros
 ; arguments must be in page zero,
 ; could be routines
+
+.macro addone wrd
+    inc wrd + 0
+    bne @p1
+    inc wrd + 1
+@p1:
+.endmacro
 
 .macro addtwo wrd
     inc wrd + 0
@@ -382,6 +390,8 @@ spull2:
 ;-----------------------------------------------------------------------
 ; forth primitives
 ;-----------------------------------------------------------------------
+
+; could be just inx dex if X is keep
 
 ;-----------------------------------------------------------------------
 ; ( w -- )
@@ -666,10 +676,10 @@ def_word ">", "GT", 0
 
 ;-----------------------------------------------------------------------
 same2_:
-    dec spi
     ldx spi
-    sta sp0 + 0, x
-    sta sp0 + 0 + sps, x
+    dec spi
+    sta sp0 - 1, x
+    sta sp0 - 1 + sps, x
     jmp next_
 
 ;-----------------------------------------------------------------------
@@ -791,12 +801,6 @@ def_word "CELL", "CCELL", 0
     sta one + 1
     jsr spush
     jmp next_
-
-;-----------------------------------------------------------------------
-; ( w1 -- )  
-def_word "EXEC", "EXEC", 0
-    jsr spull
-    jmp (one)
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- )  
@@ -1066,6 +1070,20 @@ jump_:
     jmp (one)
 
 ;-----------------------------------------------------------------------
+; ( w1 -- )  
+; without DOCOL at start of words, 
+; EXEC is a copy of TOS to ipt,
+; and goto next_
+def_word "EXEC", "EXEC", 0
+    ldx spi
+    inc spi
+    lda sp0 + 0, x
+    sta ipt + 0
+    lda sp0 + 0 + sps, x
+    sta ipt + 1
+    jmp next_
+
+;-----------------------------------------------------------------------
 ; ( -- )  for jump into a native code
 def_word ":$", "COLON_CODE", 0
     jmp (ipt)
@@ -1073,12 +1091,18 @@ def_word ":$", "COLON_CODE", 0
 ;-----------------------------------------------------------------------
 ; ( -- ) zzzz for return from native code 
 ; the code is not inner mode ! must compile native code for it
-def_word ";$", "COMMA_CODE", 0
-    jsr @pops
+def_word ";$", "COMMA_CODE", IMMEDIATE
+
+; zzzz must compile that
+    lda here + 0
+    sta ipt  + 0
+    lda here + 1
+    sta ipt + 1
+
     jmp next_
 
 ; some magics
-@pops:
+where_i_am:
     tsx
     inx 
     clc

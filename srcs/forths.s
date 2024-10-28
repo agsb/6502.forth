@@ -1071,20 +1071,15 @@ jump_:
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- )  
-; without DOCOL at start of words, 
-; EXEC is a copy of TOS to ipt,
-; and goto next_
+; EXEC is done by ´ R> EXIT ´
 def_word "EXEC", "EXEC", 0
-    ldx spi
-    inc spi
-    lda sp0 + 0, x
-    sta ipt + 0
-    lda sp0 + 0 + sps, x
-    sta ipt + 1
-    jmp next_
+    jsr spull
+    jsr rpush
+    jmp unnest_
 
 ;-----------------------------------------------------------------------
 ; ( -- )  for jump into a native code
+; wise native code ends with unnest
 def_word ":$", "COLON_CODE", 0
     jmp (ipt)
 

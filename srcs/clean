@@ -1,2 +1,0 @@
-    rm *.obj *.dep *.map *.lbl *.lbs *.lbf 
-    rm *.ram *.rom *.out *.bhx *.asm *.lst 

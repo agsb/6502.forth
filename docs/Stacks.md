@@ -21,181 +21,191 @@ Almost 6502 typical stack implementations does as standart:
       
 If using page zero or stack page, the 128 words must be split in 3 parts: One for generic code use ( < 84 words ); One for data stack ( > 22 words ); One for return stack ( > 22 words ). For multitask or multiuser, could be 2 tasks with 2 stacks of 24 words and a generic stack of 32.
       
-These are most commom, using idz, ptz, lsb, msb in zero page: 
+These are most commom, using index, pointer, LSB, MSB in zero page: 
 
 ### hardware stack SP
 
-      .macro push_sp idz, value 
-            LDA \idz;
+Uses the hardware stack, must split. Each stack uses cycles ~66 cc, 40 bytes of code and 4 bytes. _Could not use JSR/RTS inside_.
+
+      .macro push_sp index, value 
+            LDA \index;
             TSX; 
-            STX \idz; 
+            STX \index; 
             TAX; 
             TXS;      
             LDA \value + 0; 
             PHA; 
             LDA \value + 1; 
             PHA;          
-            LDA \idz; 
+            LDA \index; 
             TSX; 
-            STX \idz; 
+            STX \index; 
             TAX; 
             TXS;      
       .endmacro ; 
       
-      .macro pull_sp idz, value
-            LDA \idz;
+      .macro pull_sp index, value
+            LDA \index;
             TSX;
-            STX \idz;
+            STX \index;
             TAX;
             TXS;     
             PLA;
             STA \value + 1;
             PLA;
             STA \value + 0;           
-            LDA \idz;
+            LDA \index;
             TSX;
-            STX \idz;
+            STX \index;
             TAX;
             TXS;     
       .endmacro ;  
 
-Uses the hardware stack, must split. Each stack uses cycles ~66 cc, 40 bytes of code and 4 bytes. _Could not use JSR/RTS inside_.
 
 ### page zero indexed by X
       
-      .macro push_zx idz, ptz, value 
-            LDX \idz; 
+Uses the page zero as stack, could be splited. Each stack uses cycles ~48 cc, 28 bytes of code and 4 bytes at zero page;
+
+      .macro push_zx index, pointer, value 
+            LDX \index; 
             DEX; 
             LDA \value + 1; 
-            STA \ptz, X;
+            STA \pointer, X;
             DEX; 
             LDA \value + 0;
-            STA \ptz, X;
-            STX \idz;
+            STA \pointer, X;
+            STX \index;
       .endmacro     
       
-      .macro pull_zx idz, ptz, value 
-            LDX \idz;
-            LDA \ptz, X;
+      .macro pull_zx index, pointer, value 
+            LDX \index;
+            LDA \pointer, X;
             STA \value + 1;
             INX;
-            LDA \ptz, X;
+            LDA \pointer, X;
             STA \value + 0;
             INX;
-            STX \idz;
+            STX \index;
       .endmacro
 
-Uses the page zero as stack, could be splited. Each stack uses cycles ~48 cc, 28 bytes of code and 4 bytes at zero page;
 
 ### page zero indirect indexed by Y
 
-      .macro push_iy idz, ptz, value 
-            LDY \idz;
+Uses the a pointer in page zero to anywhere in memory. Stacks with up to 128 cells. Each stack uses ~50 cc, 28 bytes of code and 4 bytes at zero page. _Multiuser and Multitask systems can change the pointers anytime._ 
+
+      .macro push_iy index, pointer, value 
+            LDY \index;
             DEY;
             LDA \value + 1;
-            STA (\ptz), Y;
+            STA (\pointer), Y;
             DEY;
             LDA \value + 0;
-            STA (\ptz), Y;
-            STY \idz;
+            STA (\pointer), Y;
+            STY \index;
       .endmacro      
       
-      .macro pull_iy idz, ptz, value 
-            LDY \idz;
-            LDA (\ptz), Y;
+      .macro pull_iy index, pointer, value 
+            LDY \index;
+            LDA (\pointer), Y;
             STA \value + 1;
             INY;
-            LDA (\ptz), Y;
+            LDA (\pointer), Y;
             STA \value + 0;
             INY;
-            STY \idz;
+            STY \index;
       .endmacro
 
-Uses the a pointer in page zero to anywhere in memory. Stacks with up to 128 cells. Each stack uses ~50 cc, 28 bytes of code and 4 bytes at zero page. _Multiuser and Multitask systems can change the pointers anytime._ 
 
 ### absolute address indexed by X or Y, not splited
       
-      .macro push_ax idz, value 
-            LDX \idz;
+Uses one absolute pointer _pointer_ to memory. Stacks with up to 128 cells. Each stack uses ~52 cc, 32 bytes of code and 2 bytes at zero page. _Any operation with values at stack could be at direct offset, no need use pulls and pushs_
+
+      .macro push_ax index, value 
+            LDX \index;
             LDA \value + 1;
-            STA ptr - 1, X;
+            STA pointer - 1, X;
             LDA \value + 0;
-            STA ptr - 2, X;
+            STA pointer - 2, X;
             DEX;
             DEX;
-            STX \idz;
+            STX \index;
       .endmacro    
       
-      .macro pull_ax idz, value 
-            LDX \idz;
-            LDA ptr + 0, X;
+      .macro pull_ax index, value 
+            LDX \index;
+            LDA pointer + 0, X;
             STA \value + 0;
-            LDA ptr + 1, X;
+            LDA pointer + 1, X;
             STA \value + 1;;
             INX;
             INX;
-            STX \idz; 
+            STX \index; 
       .endmacro
 
-Uses one absolute pointer _ptr_ to memory. Stacks with up to 128 cells. Each stack uses ~52 cc, 32 bytes of code and 2 bytes at zero page. _Any operation with values at stack could be at direct offset, no need use pulls and pushs_
 
 ### split absolute address indexed by X or Y
       
-      .macro push_axs idz, value 
-            LDX \idz;
+Uses two absolute pointers _pointer_lo_ and _pointer_hi_ to memory. Stacks with up to 256 cells, splited in two parts. Each stack uses ~48 cc, 30 bytes of code and 2 bytes at zero page.  _Any operations with values at stack could be at direct offset, no need pulls and pushs_
+
+      .macro push_axs index, value 
+            LDX \index;
             LDA \value + 1;
-            STA ptr_lo - 1, X;
+            STA pointer_lo - 1, X;
             LDA \value + 0;
-            STA ptr_hi - 1, X;
+            STA pointer_hi - 1, X;
             DEX;
-            STX \idz;
+            STX \index;
       .endmacro    
       
-      .macro pull_axs idz, value 
-            LDX \idz;  
-            LDA ptr_lo + 0, X;
+      .macro pull_axs index, value 
+            LDX \index;  
+            LDA pointer_lo + 0, X;
             STA \value + 0;
-            LDA ptr_hi + 0, X;
+            LDA pointer_hi + 0, X;
             STA \value + 1;
             INX;
-            STX \idz;
+            STX \index;
       .endmacro
 
-Uses two absolute pointers _ptr_lo_ and _ptr_hi_ to memory. Stacks with up to 256 cells, splited in two parts. Each stack uses ~48 cc, 30 bytes of code and 2 bytes at zero page.  _Any operations with values at stack could be at direct offset, no need pulls and pushs_
 
 ### direct address with indirect access by Y
 
-      .macro push_di ptr, value 
+Uses an absolute pointer _pointer_ to memory. _Stacks with up to any size_. Each stack uses ~96 cc, 58 bytes of code and 2 bytes at page zero. 
+
+      .macro push_di pointer, value 
             LDY #0; 
             LDA \value + 1;
-            STA (ptr), Y; 
-            INC ptr + 0;
+            STA (pointer), Y; 
+            INC pointer + 0;
             BNE :+ ;
-            INC ptr + 1; : ;
+            INC pointer + 1; 
+            : ;
             LDA \value + 0;
-            STA (ptr), Y; 
-            INC ptr + 0;
+            STA (pointer), Y; 
+            INC pointer + 0;
             BNE :+ ;
-            INC ptr + 1; : ;
+            INC pointer + 1; 
+            : ;
        .endmacro    
       
-      .macro pull_di ptr, value 
+      .macro pull_di pointer, value 
             LDY #0; 
-            LDA ptr + 0;
+            LDA pointer + 0;
             BNE :+ ;
-            DEC ptr + 1;
-            : DEC ptr + 0; 
-            LDA (ptr), Y;
+            DEC pointer + 1;
+            : ;
+            DEC pointer + 0; 
+            LDA (pointer), Y;
             STA \value + 1; 
-            LDA ptr + 0;
+            LDA pointer + 0;
             BNE :+ ;
-            DEC ptr + 1;
-            : DEC ptr + 0; 
-            LDA (ptr), Y;
+            DEC pointer + 1;
+            : ;
+            DEC pointer + 0; 
+            LDA (pointer), Y;
             STA \value + 0;
       .endmacro
 
-Uses an absolute pointer _ptr_ to memory. _Stacks with up to any size_. Each stack uses ~96 cc, 58 bytes of code and 2 bytes at page zero. 
 
 ### Comparasion
 

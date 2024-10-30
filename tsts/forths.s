@@ -28,13 +28,10 @@
 ; ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
 ; POSSIBILITY OF SUCH DAMAGE.
 ;-----------------------------------------------------------------------
-
-;/*
 ;note todo:
 ;
 ;
-;*/
-
+;
 ;-----------------------------------------------------------------------
 ;
 ;   A(nother) Forth for 6502
@@ -1113,30 +1110,19 @@ where_i_am:
     rts
 
 ;-----------------------------------------------------------------------
-bump_:
-    ; to next reference
-    addtwo ipt
-    jmp next_
-
-;-----------------------------------------------------------------------
-; ( -- ipt ) dovar 
-def_word "(DODOE)", "DODOES", 0
-    jmp next_
-
-;-----------------------------------------------------------------------
-; ( -- ipt ) dovar  
-def_word "(DOVAR)", "DOVAR", 0
+; ( -- ipt ) zzzz why need this ? 
+def_word "LIT@", "LITAT", 0
     ldx spi
     dec spi
     lda ipt + 0
     sta sp0 - 1, x
     lda ipt + 1
     sta sp0 - 1 + sps, x
-    jmp bump_
+    jmp next_
 
 ;-----------------------------------------------------------------------
-; ( -- (ipt) ) docon 
-def_word "(DOCON)", "DOCON", 0
+; ( -- )  
+def_word "LIT", "LIT", 0
     ldx spi 
     dec spi
     ldy #0
@@ -1145,8 +1131,12 @@ def_word "(DOCON)", "DOCON", 0
     iny
     lda (ipt), y
     sta sp0 - 1 + sps, x
-    jmp bump_
     
+bump_:
+    ; to next reference
+    addtwo ipt
+    jmp next_
+
 ;-----------------------------------------------------------------------
 ; ( -- )  
 def_word "0BRANCH", "ZBRANCH", 0
@@ -1155,7 +1145,7 @@ def_word "0BRANCH", "ZBRANCH", 0
     lda sp0 + 0, x
     ora sp0 + 0 + sps, x
     beq bran_
-    jmp bump_
+    bne bump_
 
 ;-----------------------------------------------------------------------
 ; ( -- )    branch by a word offset  

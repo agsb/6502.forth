@@ -1,0 +1,5 @@
+
+MY=$1 make clean
+
+MY=$1 make
+

@@ -35,7 +35,7 @@ all:
 
 clean:
 	
-	$(RM) $(MY) $(MY).out $(MY).err \
-		  $(MY).map $(MY).lbl $(MY).lbs $(MY).lst
+	$(RM) $(MY) $(MY).out $(MY).err $(MY).map $(MY).lst \
+			    $(MY).lbl $(MY).lbs
 
 

@@ -32,6 +32,7 @@
 ;/*
 ;note todo:
 ;
+;   no vocabularies.
 ;
 ;*/
 
@@ -124,22 +125,31 @@ makelabel "", label
 
 .macro addone wrd
     inc wrd + 0
-    bne @p1
+    bne :+
     inc wrd + 1
-@p1:
+:
 .endmacro
 
 .macro addtwo wrd
     inc wrd + 0
-    bne @p1
+    bne :+
     inc wrd + 1
-@p1:
+:
     inc wrd + 0
-    bne @p2
+    bne :+
     inc wrd + 1
-@p2:
+:
 .endmacro
     
+.macro addacm wrd
+    clc
+    adc wrd + 0
+    sta wrd + 0
+    bcc :+
+    inc wrd + 1
+:
+.endmacro
+
 .macro copyinto from, into
     ldy #0
     lda from + 0
@@ -265,11 +275,11 @@ boot:
     ; prepare hardware 
     jmp main
 
-task: .word $0
-page: .word $0
-buff: .word $0
-head: .word $0
-tail: .word $0
+;task: .word $0
+;page: .word $0
+;buff: .word $0
+;head: .word $0
+;tail: .word $0
 
 ;-----------------------------------------------------------------------
 tib:
@@ -1026,6 +1036,11 @@ unnest_:  ; aka semis:
     ; but use jsr/rts will delay 12 cycles
 
 next_:
+
+    ; from R65F11
+    bit INTFLG
+    bvs INTRTN
+
     ldy #0
     lda (ipt), y
     sta one + 0
@@ -1254,32 +1269,13 @@ find_:
 @done:
 ; update to code
     tya
-    clc
-    adc one + 0
-    sta one + 0
-    bcc @p3
-    inc one + 1
-@p3:
+    addacm one
+
 @ends:
     rts
 
 ;----------------------------------------------------------------------
-quit_:
-;   uncomment for feedback, comment out "BEQ ABORT" above
-    lda #'?'
-    jsr putch
-    lda #'?'
-    jsr putch
-    lda #10
-    jsr putch
-    jmp abort  ; end of dictionary, no more words to search, abort
-
-;----------------------------------------------------------------------
 ; inside routines
-getch:
-putch:
-
-same:
 
 parse:
 
@@ -1301,9 +1297,27 @@ outer_:
 
 resolve:
 ; get a token
-    jsr word
+    jsr word_
+
+; is a defined word ?
     jsr find_
-    
+   
+    bne eval_
+
+    jsr nums_
+
+    bne eval_
+
+quit_:
+    lda #'?'
+    jsr putch
+    lda #'?'
+    jsr putch
+    lda #10
+    jsr putch
+    jmp abort  ; end of dictionary, no more words to search, abort
+
+;----------------------------------------------------------------------
 eval_:
 
 ; executing ? if == \0
@@ -1317,6 +1331,7 @@ eval_:
 compile:
 
     jsr coma_
+
     jmp outer_
 
 immediate:
@@ -1338,7 +1353,7 @@ getchar:
     rts
 
 ;----------------------------------------------------------------------
-; accept an asciiz line 
+; accept an ascii line, stores a asciiz line
 accept:
     ldy #0
 @loop:
@@ -1346,7 +1361,7 @@ accept:
     iny 
     jsr getchar
     bpl @loop
-; edit for \b \u \n \r ...
+; minimal edit for \b \u \n \r ...
 @bck:
     cmp #8  ;   \t
     bne @cnc 
@@ -1417,18 +1432,19 @@ warm:
     sta here + 0
 
 ;---------------------------------------------------------------------
-; supose never change
+;   supose never change
+;   stacks grows backwards
 reset:
     ;ldy #>tib
     ;sty toin + 1
     ;sty tout + 1
 
 abort:
-    ldx #0
+    ldx #$FF
     stx spi           
 
 quit:
-    ldx #0
+    ldx #$FF
     stx rpi           
 
 ;-----------------------------------------------------------------------
@@ -1440,6 +1456,10 @@ ends:
 ;-----------------------------------------------------------------------
 ;   COMPOSE WORDS, pre-compiled
 ;-----------------------------------------------------------------------
+
+
+;-----------------------------------------------------------------------
+; two cells stuff
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- w2 w3 )     

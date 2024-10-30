@@ -29,6 +29,8 @@ $(MY): $(SOURCES:.s=.o)
 
 	sort -k 2 < $@.lbl > $@.lbs
 
+	od --endian=big -A x -t x1z -v $@ > $@.hex
+
 all: 
 	
 	$(MY)
@@ -36,6 +38,6 @@ all:
 clean:
 	
 	$(RM) $(MY) $(MY).out $(MY).err $(MY).map $(MY).lst \
-			    $(MY).lbl $(MY).lbs
+			    $(MY).lbl $(MY).lbs $(MY).hex
 
 

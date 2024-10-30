@@ -179,6 +179,31 @@ H0000 = 0
 ;  end of ca65 assembler specifics
 ;-----------------------------------------------------------------------
 
+;---------------------------------------------------------------------
+;  this code depends on system or emulators
+;
+;  lib6502  emulator
+;
+getch:
+    lda $E000
+
+eofs:
+; EOF ?
+    cmp #$FF ; also clean carry :)
+    beq byes
+
+putch:
+    sta $E000
+    rts
+
+; exit for emulator
+byes:
+    jmp $0000
+
+;
+;   lib6502 emulator
+;---------------------------------------------------------------------
+
 ;-----------------------------------------------------------------------
 ;    constants
 
@@ -1037,9 +1062,10 @@ unnest_:  ; aka semis:
 
 next_:
 
-    ; from R65F11
-    bit INTFLG
-    bvs INTRTN
+    ; from R65F11, interrupt service
+    ; bit INTFLG
+    ; bvs INTRTN
+    ; http://wilsonminesco.com/6502primer/IRQconx.html
 
     ldy #0
     lda (ipt), y
@@ -1390,7 +1416,7 @@ accept:
 ; to a buffer as c-str
 ; note: also ends at controls
 ; 
-word:
+word_:
     ldy #0
 
 @skip:  ; skip spaces
@@ -1410,6 +1436,11 @@ word:
     tya
     ldy #0
     sta (toin), y
+    rts
+
+;----------------------------------------------------------------------
+nums_:
+    ; parse a number
     rts
 
 ;----------------------------------------------------------------------

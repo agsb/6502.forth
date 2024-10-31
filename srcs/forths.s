@@ -248,6 +248,18 @@ LENGTH = 15
 ;-----------------------------------------------------------------------
 * = $E0     ; internal use
 
+; generic interrut flag
+; intflg: .byte $0
+
+; generic interrupt code
+; intcdr: .byte $0
+
+; code list pointer
+; cpt:    .word $0
+
+; header list pointer
+; hpt:    .word $0
+
 ; saved X register
 svx:    .byte $0
 
@@ -266,15 +278,8 @@ ipt:    .word $0
 ; dictionary pointer
 dpt:    .word $0
 
-; stacks are fixed
-
-; data stack base pointer
-; spt:    .word $0
-
-; return stack base pointer
-; rpt:    .word $0
-
-; extra dummies
+; extra dummies, 
+; must be 4 for multiply and division
 one:    .word $0
 two:    .word $0
 six:    .word $0
@@ -283,15 +288,16 @@ ten:    .word $0
 ;-----------------------------------------------------------------------
 *= $F0  ; external use
 
+user:   .word $0    ; start of user area
 stat:   .word $0    ; state of Forth, 0 is interpret, 1 is compiling
 base:   .word $0    ; number radix for input and output
 last:   .word $0    ; reference to last word, link field
-here:   .word $0    ; reference to next free cell on heap
 
-user:   .word $0    ; start of user area
+here:   .word $0    ; here to compiling
 back:   .word $0    ; keep the here while compiling
 tibz:   .word $0    ; TIB
 toin:   .word $0    ; TIB reference to next word
+
 
 ;-----------------------------------------------------------------------
 .segment "CODE"
@@ -1062,10 +1068,11 @@ unnest_:  ; aka semis:
 
 next_:
 
+    ; todo:
     ; from R65F11, interrupt service
+    ; http://wilsonminesco.com/6502primer/IRQconx.html
     ; bit INTFLG
     ; bvs intr_
-    ; http://wilsonminesco.com/6502primer/IRQconx.html
 
     ldy #0
     lda (ipt), y
@@ -1114,9 +1121,13 @@ jump_:
 
 ;-----------------------------------------------------------------------
 ;
-;intr_:
-;    ; process the interrupt pool
-;    rts
+; intr_:
+;   ; process a interrupt 
+    ; could be a pool
+    ; as Forth 
+;    lda #$C0
+;    sta INTFLG
+;    rti
 
 ;-----------------------------------------------------------------------
 ; ( -- w)  

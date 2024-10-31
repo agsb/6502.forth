@@ -562,18 +562,6 @@ def_word "XOR", "XORT", 0
     jmp this_
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- (w1 - w2) ) 
-def_word "-", "SUB", 0
-    ldx spi
-    sec
-    lda sp0 + 0, x
-    sbc sp0 + 1, x
-    sta sp0 + 1, x
-    lda sp0 + 0 + sps, x
-    sbc sp0 + 1 + sps, x
-    jmp this_
-
-;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 + w2) ) 
 def_word "+", "ADD", 0
     ldx spi
@@ -605,6 +593,18 @@ def_word "D+", "DADD", 0
     adc sp0 + 3 + sps, x
     sta sp0 + 3 + sps, x
     jmp next_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- (w1 - w2) ) 
+def_word "-", "SUB", 0
+    ldx spi
+    sec
+    lda sp0 + 0, x
+    sbc sp0 + 1, x
+    sta sp0 + 1, x
+    lda sp0 + 0 + sps, x
+    sbc sp0 + 1 + sps, x
+    jmp this_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 w4 -- (w1 w2 - w3 w4) ) 
@@ -933,6 +933,17 @@ def_word "DP", "DP", 0
     lda dpt + 1
     sta one + 1
     jsr spush
+    jmp next_
+
+;-----------------------------------------------------------------------
+; ( -- ) assure word is even, because CELL is 2 
+def_word "ALIGN", "ALIGN", 0
+    ldx spi
+    lda sp0 + 0, x
+    lsr
+    bnc @ends
+    jmp INCR 
+@ends:
     jmp next_
 
 ;-----------------------------------------------------------------------

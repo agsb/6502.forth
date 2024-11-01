@@ -673,8 +673,8 @@ def_word "0<", "LTZ", 0
     bcs true2
 
 ;-----------------------------------------------------------------------
-; ( w1 -- (w1 < 0) ) 
-def_word "0>", "GTZ", 0
+; ( w1 w2 -- (u1 < u2) ) ZZZZ NOT WORK !!!
+def_word "U<", "UEQ", 0
     ldx spi
     inc spi
     lda sp0 + 0 + sps, x

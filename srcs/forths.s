@@ -40,7 +40,7 @@
 ;
 ;   A(nother) Forth for 6502
 ;   using minimal thread code and
-;   absolute memory indirect for both stacks
+;   ? absolute memory indirect for both stacks
 ;
 ;   uses A, X, Y, caller will keep
 ;   no use of hardware stack
@@ -58,13 +58,7 @@
 ;
 ;   why another Forth? To learn how to.
 ;
-;   the 'bare bones' BIOS must have:
-;       millis,     return milliseconds
-;       getch,      get a byte from USART/COMM port
-;       putch,      put a byte into USART/COMM port
-;       getio,      get a byte from a GPIO/DEVICE
-;       putio,      put a byte into a GPIO/DEVICE
-;       
+;   for use in the 6502.toy SBC
 ;
 ;-----------------------------------------------------------------------
 

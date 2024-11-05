@@ -117,6 +117,7 @@ makelabel "", label
 ; arguments must be in page zero,
 ; could be routines
 
+; 1+
 .macro addone wrd
     inc wrd + 0
     bne :+
@@ -124,6 +125,7 @@ makelabel "", label
 :
 .endmacro
 
+; 2+
 .macro addtwo wrd
     inc wrd + 0
     bne :+
@@ -135,6 +137,7 @@ makelabel "", label
 :
 .endmacro
     
+; acm +
 .macro addacm wrd
     clc
     adc wrd + 0
@@ -161,6 +164,7 @@ makelabel "", label
     lda (from), y
     sta into + 1
 .endmacro
+
 
 ;-----------------------------------------------------------------------
 ; variables for macros
@@ -1141,9 +1145,9 @@ def_word "0", "ZERO", 0
 lows_:
     ldx spi 
     dec spi
-    sta sp0 + 0, x
+    sta sp0 - 1, x
     lda #0
-    sta sp0 + 1 + sps, x
+    sta sp0 - 1 + sps, x
     jmp next_
 
 ;-----------------------------------------------------------------------
@@ -1224,7 +1228,7 @@ bump_:
     jmp next_
 
 ;-----------------------------------------------------------------------
-; ( -- ipt ) dovar 
+; ( -- ipt ) zzz not work, todo 
 def_word "(DODOE)", "DODOES", 0
     jmp next_
 

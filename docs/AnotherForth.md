@@ -21,7 +21,7 @@
    careful consideration of options, given the restricted and specific 
    set of opcodes of the 6502. 
 
-   Some eForth concepts of minimal number of primitives.
+   With eForth concepts of minimal number of primitives.
 
    The Fig-Forth code, by W. B. Ragsdale and Robert Selzer, was also
    used as the basis for the R65F11, manufactured by Rockwell, 
@@ -31,79 +31,49 @@
     
     Some goals:
 
-    1.  Minimal boot rom with Forth bare bones;
+    1.  Minimal boot Rom with Forth as bare bones boot;
     2.  Almost relocable compiled code;
-    3.  Use of blocks and screens for keep simple;
-    4.  
+    3.  Interrups threads in Forth;
+    4.  Use of blocks and screens for keep simple;
 
  ## Forth
 
-    goals and marks.
+    1. reserves $00 to $3F of page zero for MONITOR, SWEET-16, etc
+    2. pleny of full 64k (sic) RAM, use interleaved dictionary
+    3. uses Minimal Thread Code.
+    4. mixed eForth and Fig-Forth references.
+    5. 
 
-    . reserves $00 to $24 of page zero for SWEET-16 use
-    . pleny of full 64k (sic) RAM, use interleaved dictionary
-    . uses Minimal Thread Code.
+ ## Uniques
 
- ## Hardware
+    1. No DO LOOP, only FOR NEXT that exits at 0
+    2. 
+
+ ## Words
+
+    unnest  next  pick  nest  pick  jump 
+    find  comma  number  parse  word  accept 
+    push  putw  select  
+    key  emit  ?key  ?emit
+
+    C@  C!  @  !  R@  R>  >R  SP@  RP@  SP!  RP! 
+    DROP  DUP  SWAP  OVER 0= 0< U<  +  U+
+    :  ;  ,  ' ;S  EXIT  EXECUTE  FOR  NEXT . ?
+
+    1+  1-  2+  2-  0  1  2  3  CELL  CELLS  CR  BL
+    ROT  -ROT  DIP  2/  2*  NEGATE  INVERT  +  +!  
+
+    BRANCH  QBRANCH  DP  LATEST  HERE 
+    IF  ELSE  THEN  BEGIN  AGAIN  UNTIL  WHILE  REPEAT
+    CASE OF ENDOF ENDCASE
     
-    . minimal 2 kb (256 bytes for 16 devices mapper) boot EPROM
-    . full 64 kb RAM system
-    . copy main FORTH from EEPROM to RAM
-    . use I2C EEPROMs as Hard Disk
+ ## Rationale
 
-    1   MOS6502 (or W65C02)
-    1   N6551       VIA
-    2   M6522       PIA
-    2   HM65256     32k RAM
-    1   AT28C16     2k EEPROM
-    8   AT24C256    32k I2C EEPROM
-    1   Xtal        1.8 MHz
-    1   74HC74
-    N   74HC00
-    
-   The 6502's default frequency of about 1 MHz is merely illustrative, 
-   compared to the 3.6 GHz of current CPUs.
-   
-   the USART is at 9600 bps, 8-N-1, duplex. fixed, no changes.
+    the most used words in Forth executions are:
 
-   the I2C EEPROM used as Hard Disk, 1k block, 64 bytes (screens).
+        inner  CALL  EXIT  LIT  
+        @  !  0=  0<  +
+        QBRANCH  BRANCH  DROP  PUTW
 
- ## BIOS
 
-### Primitives
 
-```
-    inner core: 
-
-        unnest, next, pick, nest, link, jump,
-        colon, semmis, comma, tick, word, parse, expect,
-        docon, dovar, dodoes, pscode, execute,
-        push, pull, put,
-        drop, dup, swap, over, rot, -rot,
-        and, or, xor, +, -, 2/, 2*, 2+, 2-, 1+, 1-,
-        r>, >r, r@, sp@, rp@, sp!, rp!,
-        for, next, setup, 
-        0, 1, 2, 3, 4, BL, CR,
-        DP, here, alloc, 
-        interrupt,
-
-   the 'bare bones' BIOS must have:
-
-       millis,     return milliseconds
-       getch,      get a byte from USART/COMM port
-       putch,      put a byte into USART/COMM port
-       qgetch,     verify if get a byte from USART/COMM port
-       qputch,     verify if put a byte into USART/COMM port
-       getio,      get a byte from a GPIO/DEVICE
-       putio,      put a byte into a GPIO/DEVICE
-    
-    i2c core:
-       
-```
- ## References
-
-   The history of Fig-Forth roots is at [Through The Forth
-   Jungle](https://www.forth.org/svfig/kk/10-2021-Ragsdale.pdf)
-
-    The [6502 forum](https://6502.org) 
-   

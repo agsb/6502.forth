@@ -48,18 +48,22 @@
 ;   data stack in page zero,
 ;   return stack in page one
 ;   and using minimal thread code
+;   Fig-Forth alike.
 ;
-;   uses A, X, Y, caller will keep
+;   uses X as data stack index, Y as keeped zero 
+;
 ;   (still) non-rellocable code, 
 ;   (still) non-optimized code,
 ;
 ;   FALSE is $0000 (0) TRUE is $FFFF (-1)
 ;   SP0 and RP0 uses $FF as botton
+;
 ;   stacks LSB and MSB splited by STACKSIZE
 ;   stacks grows backwards, as -2 -1 0 1 2 3 ...
 ;   0 is TOS, 1 is NOS,
 ;
-;   No real CFA, always next cell after c-name
+;   No real CFA, always is next cell after c-name
+;   No need of DOCOL at CFA, vide MTC
 ;
 ;   why another Forth? To learn how to.
 ;
@@ -1001,12 +1005,10 @@ mul_:
 def_word "EXIT", "EXIT", 0
 unnest_:  ; aka semis:
     ; pull from return stack, also semis ;S
-    ldx rpi
-    inc rpi
-    lda rp0 + 0, x
-    sta ipt + 0
-    lda rp0 + 0 + sps, x
+    pla
     sta ipt + 1
+    pla
+    sta ipt + 0
 
     ; this code repeats elsewhere 
     ; but use jsr/rts will delay 12 cycles
@@ -1045,12 +1047,10 @@ pick_:
 nest_:   
     ; aka docol
     ; push into return stack
-    ldx rpi
-    dec rpi
     lda ipt + 0
+    pha
     sta rp0 - 1, x
-    lda ipt + 1
-    sta rp0 - 1 + sps, x
+    pha
 
 link_:
     ; next reference

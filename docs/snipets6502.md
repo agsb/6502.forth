@@ -1,6 +1,22 @@
 
 # 6502 code snipets
 
+## always branch +/- 127, 4 cc
+* = $0000
+0000   18                   CLC                ;(2)
+0001   90 00                BCC $00            ;(2)  
+.END
+
+## always direct jump, 3 cc
+* = $0000
+0000   4C 0000              JMP $0000          ;(3)
+.END
+
+# always indirect jump, 5 cc
+* = $0000
+0000   6C 0000              JMP ($0000)        ;(5)
+.END
+
 ## push a zp word, 12 cc
 * = $0000
 0000   A5 00                LDA $00            ;(3)
@@ -90,31 +106,14 @@
 000B   95 01                STA $01,X          ;(4)
 .END
 
-## add a byte to a word in zp, 18 cc
+## add a byte to a word in zp, 17 cc
 * = $0000
 0000   18                   CLC                ;(2)
 0001   A9 02                LDA #$02           ;(2)
 0003   65 00                ADC $00            ;(3)
 0005   85 00                STA $00            ;(3)
-0007   A9 00                LDA #$00           ;(2)
-0009   65 01                ADC $01            ;(3)
-000B   85 01                STA $01            ;(3)
-.END
-
-## always branch, 4 cc
-* = $0000
-0000   18                   CLC                ;(2)
-0001   90 00                BCC $00            ;(2/3)  
-.END
-
-## always direct jump, 3 cc
-* = $0000
-0000   4C 0000              JMP $0000          ;(3)
-.END
-
-# always indirect jump, 5 cc
-* = $0000
-0000   6C 0000              JMP ($0000)        ;(5)
+0007   D0 02                BCC $000B          ;(2)
+0009   E6 01                INC $01            ;(5)
 .END
 
 ## copy into memory indexed Y, 22 cc
@@ -159,6 +158,16 @@
 000A   E6 01                INC $01            ;(5)
 000C   A5 03      L000C     LDA $03            ;(3)
 000E   81 00                STA ($00,X)        ;(6)
+.END
+
+## change +/- 2 to SP, 14 cc 
+* = $0000
+0000   86 00                STX $00            ;(3)
+0002   BA                   TSX                ;(2)
+0003   E8                   INX                ;(2)
+0004   E8                   INX                ;(2)
+0005   9A                   TXS                ;(2)
+0006   A6 00                LDX $00            ;(3)
 .END
 
 

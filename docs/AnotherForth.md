@@ -15,17 +15,17 @@
    Forth as the host and the main agent of processes and event, 
    thus, setting full use of the data stack on page zero and the 
    return stack on the dedicated CPU stack, as done in the original 
-   Fig-Forth code.
+   Fig-Forth and eForth codes.
 
-   Fig-Forth code turns out to be brilliant, a feat of ingenuity and
-   careful consideration of options, given the restricted and specific 
-   set of opcodes of the 6502. 
-
-   With eForth concepts of minimal number of primitives.
+   the code of eForth and Fig-Forth, turns out to be brilliant, 
+   a feat of ingenuity and careful consideration of options, 
+   given the restricted and specific set of opcodes of the 6502. 
 
    The Fig-Forth code, by W. B. Ragsdale and Robert Selzer, was also
    used as the basis for the R65F11, manufactured by Rockwell, 
    which contained Forth in ROMs. 
+
+   With eForth concepts of minimal number of primitives.
 
 ## How
     
@@ -35,13 +35,15 @@
     2.  Almost relocable compiled code;
     3.  Interrups threads in Forth;
     4.  Use of blocks and screens for keep simple;
+    5.  Use forth file system, [ffs](https://github.com/howerj/ffs)
+
 
  ## Forth
 
-    1. reserves $00 to $3F of page zero for MONITOR, SWEET-16, etc
-    2. pleny of full 64k (sic) RAM, use interleaved dictionary
-    3. uses Minimal Thread Code.
-    4. mixed eForth and Fig-Forth references.
+    1. reserves $00 to $3F of page zero for extras;
+    2. pleny of full 64k (sic) RAM, use interleaved dictionary;
+    3. uses Minimal Thread Code;
+    4. mixed eForth and Fig-Forth references;
     5. 
 
  ## Uniques
@@ -52,20 +54,25 @@
  ## Words
 
     unnest  next  pick  nest  pick  jump 
-    find  comma  number  parse  word  accept 
-    push  putw  select  
+    push  putw  select  monitor  
     key  emit  ?key  ?emit
 
     C@  C!  @  !  R@  R>  >R  SP@  RP@  SP!  RP! 
     DROP  DUP  SWAP  OVER 0= 0< U<  +  U+
-    :  ;  ,  ' ;S  EXIT  EXECUTE  FOR  NEXT . ?
+    EXIT  EXECUTE  FOR  NEXT . ? COLD WARM 
+    BOOT TURN-ON BYE
 
     1+  1-  2+  2-  0  1  2  3  CELL  CELLS  CR  BL
     ROT  -ROT  DIP  2/  2*  NEGATE  INVERT  +  +!  
 
-    BRANCH  QBRANCH  DP  LATEST  HERE 
+    create  does  find  comma  
+    number  parse  word  accept 
+
+    BRANCH  QBRANCH  DP  LATEST  HERE  
+    CREATE : ; , ' ;S
     IF  ELSE  THEN  BEGIN  AGAIN  UNTIL  WHILE  REPEAT
     CASE OF ENDOF ENDCASE
+    QUIT EVAL
     
  ## Rationale
 

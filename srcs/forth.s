@@ -673,17 +673,97 @@ def_word ">", "GT", 0
     bpl true2
 
 ;-----------------------------------------------------------------------
+cto:
+    lda 0, x
+    sta wrk + 0
+    lda 0 + sps, x
+    sta wrk + 1
+        
+    lda 1, x
+    sta (wrk), y
+    rts
+
+to:
+    inc wrk + 0
+    bne @bne
+    inc wrk + 1
+@bne
+    lda 1 + sps, x
+    sta (wrk), y
+    rts
+
+;-----------------------------------------------------------------------
 ; ( c a -- ) *a = (0x00FF AND c)
-; keep Y as 0
-def_word "C!", "CSTORE", 0
-    ; zzzz
+def_word "iC!", "CSTORE", 0
+    jsr cto
+    clc
+    bcc drop2
+
+;-----------------------------------------------------------------------
+; ( c a -- ) *a = (0x00FF AND c)
+def_word "i!", "CSTORE", 0
+    jsr cto
+    jsr to
+    clc
+    bcc drop2
+
+;-----------------------------------------------------------------------
+cat:
+    lda 0, x
+    sta wrk + 0
+    lda 0 + sps, x
+    sta wrk + 1
+        
+    lda (wrk), y
+    sta 0, x
+    rts
+
+at:
+    inc wrk + 0
+    bne @bne
+    inc wrk + 1
+@bne
+    lda (wrk), y
+    sda 0 + sps, x
+    rts
+
+;-----------------------------------------------------------------------
+; ( c a -- ) *a = (0x00FF AND c)
+def_word "iC@", "CSTORE", 0
+    jsr cat
+    sty 0 + sps, x
     jmp next_
+
+;-----------------------------------------------------------------------
+; ( c a -- ) *a = (0x00FF AND c)
+def_word "i@", "CSTORE", 0
+    jsr cat
+    jsr at
+    jmp next_
+
+;-----------------------------------------------------------------------
+; zzzz sta/lda (n,x) is not continuous !
+;-----------------------------------------------------------------------
+; ( c a -- ) *a = (0x00FF AND c)
+def_word "C!", "CSTORE", 0
+    lda 1, x
+    sta (0,x)
+    clc
+    bcc drop2
 
 ;-----------------------------------------------------------------------
 ; ( w a -- ) *a = w 
 def_word "!", "STORE", 0
-    ; zzzz
-    jmp next_
+    lda 1, x
+    sta (0, x)
+    inc 0, x
+    bne @bne
+    inc 1, x
+@bne:
+    lda 1 + sps, x
+    sta (0, x)
+    clc
+    bcc drop2
 
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = 0x00FF AND *w1 
@@ -700,19 +780,15 @@ def_word "@", "FETCH", 0
     pha
     inc 0,x
     bne @bne
-    inc 1,x
+    inc 0 + sps,x
 @bne:
     lda (0,x)
-    ;sta 0 + sps, 0
-    ;pla
-    ;sta 0, x
-    ;jmp next_
-    pha
-    clc
-    bcc push
+    sta 0 + sps, 0
+    pla
+    sta 0, x
+    jmp next_
 
-; zzzz
-
+;-----------------------------------------------------------------------
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1+1 
 def_word "1+", "INCR", 0

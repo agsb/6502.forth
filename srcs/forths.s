@@ -313,15 +313,17 @@ byes:
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
-; ( w1 -- (w1 << 1) ) no arithmetic
-def_word "2*", "SFHL", 0
+; ( w1 -- (w1 << 1) ) logical no arithmetic
+; ????
+def_word "SFHL", "SFHL", 0
         asl 0, x
         rol 1, x
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1 -- (w1 >> 1) ) no arithmetic 
-def_word "2/", "SFHR", 0
+; ( w1 -- (w1 >> 1) ) logical no arithmetic 
+; ????
+def_word "SFHR", "SFHR", 0
         lsr 0, x
         ror 1, x
         jmp next_

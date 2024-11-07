@@ -1,7 +1,7 @@
 
 # 6502 code snipets
 
-## always branch +/- 127, 4 cc
+## BRA, always branch +/- 127, 4 cc
 ```
 * = $0000
 0000   18                   CLC                ;(2)

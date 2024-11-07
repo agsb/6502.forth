@@ -187,29 +187,32 @@ LENGTH = 15
 ;-----------------------------------------------------------------------
 .segment "ZERO"
 
-; left $00 to $3F for extras, eg. SWEET-16, MONITOR, etc
+; just left $00 to $3F for extras, eg. SWEET-16, MONITOR, etc
 
 * = $40
 
-xsave:
-XS:     .byte $0
-ysave:
-YS:     .byte $0
+intflag:        .byte $0
+stsflag:        .byte $0
+psave:          .byte $0
+asave:          .byte $0
+xsave:          .byte $0
+ysave:          .byte $0
 
-wrk:    .word $0
 ipt:    .word $0
 upt:    .word $0
-dpt:    .word $0
+dp:    .word $0
+wrk:    .word $0
 
 ; extra dummies, 
 ; must be 4 for multiply and division
-N:  
+N:      
 one:    .word $0
 two:    .word $0
 six:    .word $0
 ten:    .word $0
 
 ;-----------------------------------------------------------------------
+; bottom of data stack
 S0 = $00FF
 ;-----------------------------------------------------------------------
 * = $0100
@@ -218,6 +221,7 @@ tib:
 .res TERMINAL, $0
 
 ;-----------------------------------------------------------------------
+; bottom of return stack
 R0 = $01FF
 ;-----------------------------------------------------------------------
 * = $0200
@@ -309,17 +313,24 @@ byes:
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
-; ( w1 -- (w1 << 1) ) 
+; ( w1 -- (w1 << 1) ) no arithmetic
 def_word "2*", "SFHL", 0
         asl 0, x
-        rol 0 + sps, x
+        rol 1, x
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1 -- (w1 >> 1) ) 
+; ( w1 -- (w1 >> 1) ) no arithmetic 
 def_word "2/", "SFHR", 0
         lsr 0, x
-        ror 0 + sps, x
+        ror 1, x
+        jmp next_
+
+;-----------------------------------------------------------------------
+; ( w -- )
+def_word "DROP", "DROP", 0
+        inx
+        inx
         jmp next_
 
 ;-----------------------------------------------------------------------
@@ -343,12 +354,6 @@ def_word "OVER", "OVER", 0
         lda 5, x
         sta 1, x
         jmp next_
-
-;-----------------------------------------------------------------------
-; ( w -- )
-def_word "DROP", "DROP", 0
-        clc
-        bcc drop_
 
 ;-----------------------------------------------------------------------
 ; ( -- w1 ) R( w1 -- w1 )  
@@ -382,10 +387,10 @@ drop_:
 ;-----------------------------------------------------------------------
 ; ( -- w1 ) R( w1 -- ) 
 def_word "R>", "RTO", 0
-push:
+push_:
         dex
         dex
-putw:
+putw_:
         pla
         sta 1, x
         pla
@@ -404,7 +409,7 @@ def_word "SWAP", "SWAP", 0
         lda 1, x
         sta 3, x
         clc 
-        bcc putw
+        bcc putw_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 AND w2) ) 
@@ -414,9 +419,11 @@ def_word "AND", "ANDT", 0
         sta 2, x
         lda 3, x
         and 1, x
+msbs_:        
         sta 3, x
-        clc
-        bcc drop_
+        inx
+        inx
+        jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 OR w2) ) 
@@ -426,9 +433,8 @@ def_word "OR", "ORT", 0
         sta 2, x
         lda 3, x
         ora 1, x
-        sta 3, x
-        clc
-        bcc drop_
+        clc 
+        bcc msbs_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 XOR w2) ) 
@@ -438,9 +444,8 @@ def_word "XOR", "XORT", 0
         sta 2, x
         lda 3, x
         eor 1, x
-        sta 3, x
-        clc
-        bcc drop_
+        clc 
+        bcc msbs_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 + w2) ) 
@@ -451,9 +456,8 @@ def_word "+", "ADD", 0
         sta 2, x
         lda 3, x
         adc 1, x
-        sta 3, x
-        clc
-        bcc drop_
+        clc 
+        bcc msbs_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 - w2) ) 
@@ -464,59 +468,55 @@ def_word "-", "SUB", 0
         sta 2, x
         lda 3, x
         sbc 1, x
-        sta 3, x
-        clc
-        bcc drop_
+        clc 
+        bcc msbs_
 
 ;-----------------------------------------------------------------------
 ; ( -- 0x0000 ) 
 def_word "FALSE", "FFALSE", 0
+        dex
+        dex
 false2:
         lda #$00    ; false
-        pha
-        pha
-        bne push_
+same_:
+        sta 0, x
+        sta 1, x
+        jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( -- 0xFFFF ) 
 def_word "TRUE", "TTRUE", 0
+        dex
+        dex
 true2:
         lda #$FF    ; true
-        pha
-        pha
-        bne push_
+        bne same_
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- (w1 == 0) ) 
 def_word "0=", "EQZ", 0
-        inx
-        inx
-        lda -1, x
-        ora -2, x
-        beq true2
+        lda 0, x
+        ora 1, x
         bne false2
+        beq true2
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- (w1 < 0) ) 
 def_word "0<", "LTZ", 0
         lda 1, x
         asl
-        inx
-        inx
         bcc false2
         bcs true2
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 < w2) )   
 def_word "U<", "LTU", 0
-        lda 2, x 
-        cmp 0, x
-        bne @mcc
         lda 3, x
         cmp 1, x
+        bne @mcc
+        lda 2, x 
+        cmp 0, x
 @mcc:
-        inx
-        inx
         inx
         inx
         bcs false2
@@ -525,40 +525,23 @@ def_word "U<", "LTU", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 = w2) ) 
 def_word "=", "EQ", 0
+        inx 
+        inx
         lda 0, x
-        xor 2, x
+        ora 254, x
         bne false2
         lda 1, x
-        xor 3, x
+        ora 255, x
         bne false2
         beq true2
-
-;-----------------------------------------------------------------------
-; ( w1 w2 -- (w1 < w2) ) 
-def_word "<", "LT", 0
-        jsr cmp_
-        bmi true2
-        bpl false2
-
-;-----------------------------------------------------------------------
-; ( w1 w2 -- (w1 > w2) ) 
-def_word ">", "GT", 0
-        jsr cmp_
-        bmi false2
-        beq false2
-        bpl true2
 
 ;-----------------------------------------------------------------------
 ; ( c a -- ) *a = (0x00FF AND c)
 def_word "C!", "CSTORE", 0
         lda 2, x
         sta (0,x)
-drop2:
-        inx
-        inx
-        inx
-        inx
-        jmp next_
+        clc
+        bcc drop2
 
 ;-----------------------------------------------------------------------
 ; ( w a -- ) *a = w 
@@ -571,8 +554,12 @@ def_word "!", "STORE", 0
 @bne:
         lda 3, x
         sta (0, x)
-        clc
-        bcc drop2
+drop2:
+        inx
+        inx
+        inx
+        inx
+        jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = 0x00FF AND *w1 
@@ -623,207 +610,24 @@ def_word "+!", "ADDTO", 0
 	jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- )  
-def_word "-!", "SUBTO", 0
-        ; zzzz
-	jmp next_
-
-;-----------------------------------------------------------------------
-; ( -- w1 ) index of SP0 
-def_word "SP@", "SPAT", 0
-        txa
-        pha
-        lda #$00
-        pha
-        clc
-        bcc putw
-
-;-----------------------------------------------------------------------
-; ( -- w1 )  index of RP0
-def_word "RP@", "RPAT", 0
-        stx xsave
-        tsx
-        txa
-        ldx xsave
-        pha
-        lda #$01
-        pha
-        clc 
-        bcc putw
-
-;-----------------------------------------------------------------------
-; ( w1 -- )  S0 or offset index of SP0
-def_word "SP!", "TOSP", 0
-        lda 0, x
-        tax
-        jmp next_
-
-;-----------------------------------------------------------------------
-; ( w1 -- )  R0 or offset index of RP0
-def_word "RP!", "TORP", 0
-        lda 0, x
-        stx xsave
-        tax
-        txs
-        ldx xsave
-        jmp next_
-
-;-----------------------------------------------------------------------
-; ( -- w)  
-def_word "DP", "DP", 0
-        ; ????
-        lda dpt + 0
-        pha
-        lda dpt + 1
-        pha
-        clc
-        bcc push_
-
-;-----------------------------------------------------------------------
-; ( -- ) assure word is even, because CELL is 2 
+; ( w -- w ) assure word is even, because CELL is 2 
 def_word "ALIGN", "ALIGN", 0
-        ; ????
-        lda 0, x
-        lsr
-        bnc @ends
-        jmp INCR 
-@ends:
-        jmp next_
-
-;-----------------------------------------------------------------------
-;
-; Forth stuff:
-;
-; uses one and ipt, all operations by offsets
-; ipt MUST be preserved and reserved for those routines
-;
-; as is, Minimal Thread Code for 6502
-;
-;-----------------------------------------------------------------------
-; ( -- )  
-def_word "EXIT", "EXIT", 0
-unnest_:  ; aka semis:
-        ; pull from return stack, also semis ;S
-        pla
-        sta ipt + 1
-        pla
-        sta ipt + 0
-
-        ; this code repeats elsewhere 
-        ; but use jsr/rts will delay 12 cycles
-
-next_:
-        ; todo:
-        ; bit INTFLG
-        ; bvs intr_
-
-        ldy #1
-        lda (ipt), y
-        sta wrk + 1
-        dey
-        lda (ipt), y
-        sta wrk + 0
-
-        ; next reference
-        lda #$02
-        clc
-        adc ipt + 0
-        sta ipt + 0
-        bcc pick_
-        inc ipt + 1
-
-pick_:
-        ; just compare MSB bytes
-        lda wrk + 1
-        cmp #>ends+1    ; init of heap compose dictionary
-        bmi jump_
-
-nest_:   
-        ; aka docol
-        ; push into return stack
-        lda ipt + 0
-        pha
-        sta ipt + 1
-        pha
-
-link_:
-        ; next reference
-        lda wrk + 0
-        sta ipt + 0
-        lda wrk + 1
-        sta ipt + 1
-        jmp next_
-
-jump_:
-        ; do the jump
-        jmp (wrk)
-
-;-----------------------------------------------------------------------
-;
-; intr_:
-;   ; process a interrupt 
-        ; could be a pool
-        ; as Forth 
-;    lda #$C0
-;    sta INTFLG
-;    rti
-
-;-----------------------------------------------------------------------
-; ( -- w)  
-def_word "0", "ZERO", 0
-        lda #0
-lows_:
-        dex
-        dex
+        ldy 0, x
+        iny
+        tya
+        ror
+        rol
         sta 0, x
-        lda #0
-        sta 1, x
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( -- w)  
-def_word "1", "ONE", 0
-        lda #1
-        clc 
-        bcc lows_
-
-;-----------------------------------------------------------------------
-; ( -- w)  
-def_word "2", "TWO", 0
-        lda #2
-        clc 
-        bcc lows_
-
-;-----------------------------------------------------------------------
-; ( -- w)  
-def_word "3", "THREE", 0
-        lda #3
-        clc 
-        bcc lows_
-
-;-----------------------------------------------------------------------
-; ( -- w)  
-def_word "BL", "BLANK", 0
-        lda #32
-        clc 
-        bcc lows_
-
-;-----------------------------------------------------------------------
-; ( -- CELL )
-def_word "CELL", "CCELL", 0
-        lda CELL
-        clc 
-        bcc lows_
-
-;-----------------------------------------------------------------------
-; ( w1 -- )  
-; EXEC is done by ´ R> EXIT ´
-def_word "EXEC", "EXEC", 0
+; ( w1 -- )  EXEC is done by nest in MTC
+def_word "EXECUTE", "EXEC", 0
         lda 0, x
-        pha
+        sta wrk + 0
         lda 1, x
-        pha
-        ;zzzz
+        sta wrk + 1
+        jmp nest_
 
 ;-----------------------------------------------------------------------
 ; ( -- )  for jump into a native code
@@ -835,16 +639,12 @@ def_word ":$", "COLON_CODE", 0
 ; ( -- ) zzzz for return from native code 
 ; the code is not inner mode ! must compile native code for it
 def_word ";$", "COMMA_CODE", IMMEDIATE
-
-; zzzz must compile that
         lda here + 0
         sta ipt  + 0
         lda here + 1
         sta ipt + 1
-
         jmp next_
 
-; some magics
 where_i_am:
         ; zzzz
         rts
@@ -893,18 +693,13 @@ def_word "(DOCON)", "DOCON", 0
         
 ;-----------------------------------------------------------------------
 ; ( -- )  
-def_word "LIT", "LIT", 0
-        jmp DOCON
-
-;-----------------------------------------------------------------------
-; ( -- )  
 def_word "0BRANCH", "ZBRANCH", 0
         inx
         inx
-        lda -1, x
-        ora -2, x
+        lda 255, x
+        ora 254, x
         beq bran_
-        jmp bump_
+        bne bump_
 
 ;-----------------------------------------------------------------------
 ; ( -- )    branch by a word offset  
@@ -927,27 +722,35 @@ bran_:
         jmp next_
 
 ;-----------------------------------------------------------------------
+; ( -- )  
+def_word "LIT", "LIT", 0
+        jmp DOCON
+
+;-----------------------------------------------------------------------
+;
+; Forth stuff:
+;
+; ipt MUST be preserved and reserved for those routines
 ;
 ; as is, Minimal Thread Code for 6502
 ;
 ;-----------------------------------------------------------------------
 ; ( -- )  
 def_word "EXIT", "EXIT", 0
-unnest_:  ; aka semis:
-        ; pull from return stack, also semis ;S
+unnest_:  ; pull from return stack, aka semis ;S
         pla
         sta ipt + 1
         pla
         sta ipt + 0
 
-        ; this code repeats elsewhere 
-        ; but use jsr/rts will delay 12 cycles
-
-next_:
-        
-        bit INTFLG
+;-----------------------------------------------------------------------
+next_:  
+        ; do interrupts
+        bit intflag
         bvs intr_
 
+;-----------------------------------------------------------------------
+look_:
         ldy #1
         lda (ipt), y
         sta wrk + 1
@@ -963,61 +766,340 @@ next_:
         bcc pick_
         inc ipt + 1
 
-pick_:
-        ; just compare MSB bytes
+;-----------------------------------------------------------------------
+pick_:  ; unique in Minimal Thread Code
         lda wrk + 1
         cmp #>ends+1    ; init of heap compose dictionary
         bmi jump_
 
-nest_:   
-        ; aka docol
-        ; push into return stack
+;-----------------------------------------------------------------------
+nest_:  ; push into return stack, aka docol
         lda ipt + 0
         pha
         sta ipt + 1
         pha
 
-link_:
-        ; next reference
+;-----------------------------------------------------------------------
+link_: ; next reference
         lda wrk + 0
         sta ipt + 0
         lda wrk + 1
         sta ipt + 1
         jmp next_
 
-jump_:
-        ; creed, do the jump
-            jmp (wrk)
+;-----------------------------------------------------------------------
+jump_:  ; creed, do the jump
+        jmp (wrk)
 
+;-----------------------------------------------------------------------
+; process a interrupt, could be a pool, void for now
 intr_:
-            sty intflag
-            return
+        lda #$C0
+        sta intflag
+        jmp look_
+
+;-----------------------------------------------------------------------
+;       one byte constants
+;-----------------------------------------------------------------------
+
+; ( -- w1 ) index of SP0 
+def_word "SP@", "SPAT", 0
+        txa
+lsbs_:
+        dex
+        dex
+        sta 0, x
+        sty 1, x
+        jmp next_
+
+;-----------------------------------------------------------------------
+; ( -- w1 )  index of RP0
+def_word "RP@", "RPAT", 0
+        stx xsave
+        tsx
+        txa
+        ldx xsave
+        iny
+        bne lsbs_
+
+;-----------------------------------------------------------------------
+; ( -- w)  
+def_word "0", "ZERO", 0
+        lda #0
+        beq lsbs_
+
+;-----------------------------------------------------------------------
+; ( -- w)  
+def_word "1", "ONE", 0
+        lda #1
+        bne lsbs_
+
+;-----------------------------------------------------------------------
+; ( -- w)  
+def_word "2", "TWO", 0
+        lda #2
+        bne lsbs_
+
+;-----------------------------------------------------------------------
+; ( -- w)  
+def_word "3", "THREE", 0
+        lda #3
+        bne lsbs_
+
+;-----------------------------------------------------------------------
+; ( -- w)  
+def_word "4", "FOUR", 0
+        lda #4
+        bne lsbs_
+
+;-----------------------------------------------------------------------
+; ( -- w)  
+def_word "BL", "BLANK", 0
+        lda #32
+        bne lsbs_
+
+;-----------------------------------------------------------------------
+; ( -- CELL )
+def_word "CELL", "CCELL", 0
+        lda CELL
+        bne lsbs_
+
+;-----------------------------------------------------------------------
+; ( -- )  used to reset S0, NOT to change offset index
+def_word "SP!", "TOSP", 0
+        ldx #$FF
+        jmp next_
+
+;-----------------------------------------------------------------------
+; ( -- )  used to reset R0, NOT to change offset index
+def_word "RP!", "TORP", 0
+        ldx #$FF
+        txs
+        jmp next_
+
+;-----------------------------------------------------------------------
+;       two bytes variables
+;-----------------------------------------------------------------------
+; ( -- w )  reference of forth internal dictionary heap
+def_word "DP", "DP", 0
+        dex
+        dex
+        lda #<dp
+        sta 0, x
+        lda #>dp
+        sta 1, x
+        jmp next_
+
+;-----------------------------------------------------------------------
+; ( -- w )  reference of forth internal word buffer 
+; hold a 31 chars, about a Tera * Exa decimal number
+def_word "TIB", "TIB", 0
+        dex
+        dex
+        lda #<tib
+        sta 0, x
+        lda #>tib
+        sta 1, x
+        jmp next_
+
+;-----------------------------------------------------------------------
+; ( -- w )  reference of forth internal doctionary last word 
+def_word "LATEST", "LATEST", 0
+        dex
+        dex
+        lda #<last
+        sta 0, x
+        lda #>last
+        sta 1, x
+        jmp next_
+
+;-----------------------------------------------------------------------
+; ( w1 -- ($0000 - w1) ) 
+def_word "NEGATE", "NEGATE", 0
+        lda #$00
+        bne cpt_
+
+;-----------------------------------------------------------------------
+; ( w1 -- ($FFFF - w1) ) 
+def_word "INVERT", "INVERT", 0
+        lda #$FF
+cpt_:
+        pha
+        sec
+        sbc 0, x
+        sta 0, x
+        pla
+        sbc 1, x
+        sta 1, x
+        jmp next_
+
+;----------------------------------------------------------------------
+; common must
+;
+cold:
+
+;----------------------------------------------------------------------
+warm:
+; link list of headers
+        lda #>NULL
+        sta last + 1
+        lda #<NULL
+        sta last + 0
+
+; next heap free cell, at 256-page:
+        lda #>ends + 1
+        sta here + 1
+        lda #0
+        sta here + 0
+
+;---------------------------------------------------------------------
+;   supose never change
+;   stacks grows backwards
+reset:
+
+abort:
+        ldx #$FF
+
+quit:
+        txs
+
+        jmp 0000
+
+;-----------------------------------------------------------------------
+; BEWARE, MUST BE AT END OF PRIMITIVES ! 
+; MINIMAL THREAD CODE DEPENDS ON IT !
+ends:
+;-----------------------------------------------------------------------
+
+;-----------------------------------------------------------------------
+;   COMPOSE WORDS, pre-compiled
+;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
 ; ( -- )    find a word in dictionary, return CFA or FALSE (0x0)  
+; zzzz
+def_word "(FIND)'", "FINDF", 0
+        .word DROP, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )    find a word in dictionary, return CFA or FALSE (0x0)  
+; zzzz
 def_word "'", "TICK", 0
-        jsr find_
-        jsr spush
-        jmp next_
+        .word FINDF, COMMA, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )      
+def_word "HERE", "HERE", 0
+        .word DP, FETCH, EXIT 
+
+;-----------------------------------------------------------------------
+; ( -- )    compile a word in dictionary, from TOS  
+def_word "DP+", "DPADD", 0
+        .word DP, FETCH, ADD, DP, STORE, EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )    compile a word in dictionary, from TOS  
 def_word ",", "COMMA", 0
-        jsr spull
-        jsr coma_
-        jmp next_
+        .word DP, FETCH, STORE, CELL, DPADD, EXIT
 
 ;-----------------------------------------------------------------------
-;   push a cell in heap
-coma_:
-        copyinto one, here
-        addtwo here
-        rts
+; ( -- )      
+def_word "ALLOC", "ALLOC", 0
+        .word CELLS, DPADD, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- (w1 < w2) ) 
+def_word "<", "LTH", 0
+        .word INVERT, ADD, LTZ, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- (w1 > w2) ) 
+def_word ">", "GTH", 0
+        .word SWAP, LTH, EXIT 
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- (w2) (w3) )     
+def_word "ROT", "ROTF", 0
+        .word TOR, SWAP, RTO, SWAP, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- (w2) (w3) )     
+def_word "-ROT", "ROTB", 0
+        .word SWAP, TOR, SWAP, RTO, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- (w2) (w3) )     
+def_word "2@", "TWOAT", 0
+        .word DUP, CELL, ADD, FETCH, SWAP, FETCH, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2 w3 --  )     
+def_word "2!", "TWOTO", 0
+        .word SWAP, OVER, STORE, CELL, ADD, STORE, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2 --  )     
+def_word "2R>", "TWORTO", 0
+        .word RTO, RTO, SWAP, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- w1 w2 )     
+def_word "2>R", "TWOTOR", 0
+        .word SWAP, TOR, TOR, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- w1 w2 )     
+def_word "2R@", "TWORPAT", 0
+        .word RTO, RTO, TWODUP, TWORTO, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2 --  )     
+def_word "2DROP", "TWODROP", 0
+        .word DROP, DROP, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2  -- w1 w2 w1 w2  )     
+def_word "2DUP", "TWODUP", 0
+        .word OVER, OVER, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- w1 w2 w1 w2   )     
+def_word "2OVER", "TWOOVER", 0
+        .word TWOTOR, TWODUP, TWORTO, TWOSWAP, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2 w3 w4 -- w3 w4 w1 w2 )     
+def_word "2SWAP", "TWOSWAP", 0
+        .word ROTF, TOR, ROTF, RTO, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 --  w1 + CELL )     
+def_word "CELL+", "CELLADD", 0
+        ; cells is two 
+        .word INCR, INCR, EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- w2 + 2 * w1 )     
+; cells is two 
+def_word "CELLS", "CELLS", 0
+        .word SFHL, EXIT
+
+;-----------------------------------------------------------------------
+; BEWARE, MUST BE AT END OF PRE-COMPILED-COMPOSED ! 
+;-----------------------------------------------------------------------
+; ( w1 -- w2 w3 )     
+def_word "NULL", "NULL", 0
+        .word FALSE, EXIT
+
+;-----------------------------------------------------------------------
+; END OF CODE
+.end
 
 ;-----------------------------------------------------------------------
 ; search the dictionary for a word, returns the cfa or null
 ;
 find_:
+
 ; load last
         lda last + 1
         sta two + 1
@@ -1037,10 +1119,10 @@ find_:
 
 @each:    
 ; update next link 
-        copyfrom one, two
+        ; copyfrom one, two
 
 ; update to c-name    
-        addtwo one
+        ; addtwo one
 
 ; compare words
         ldy #0
@@ -1070,7 +1152,7 @@ find_:
 @done:
 ; update to code
         tya
-        addacm one
+        ; addacm one
 
 @ends:
         rts
@@ -1218,139 +1300,9 @@ nums_:
         ; parse a number
         rts
 
-;----------------------------------------------------------------------
-; common must
-;
-cold:
-
-;----------------------------------------------------------------------
-warm:
-; link list of headers
-        lda #>NULL
-        sta last + 1
-        lda #<NULL
-        sta last + 0
-
-; next heap free cell, at 256-page:
-        lda #>ends + 1
-        sta here + 1
-        lda #0
-        sta here + 0
-
-;---------------------------------------------------------------------
-;   supose never change
-;   stacks grows backwards
-reset:
-
-abort:
-        ldx #$FF
-
-quit:
-        txs
-
-
 ;-----------------------------------------------------------------------
-; BEWARE, MUST BE AT END OF PRIMITIVES ! 
-; MINIMAL THREAD CODE DEPENDS ON IT !
-ends:
-;-----------------------------------------------------------------------
-
-;-----------------------------------------------------------------------
-;   COMPOSE WORDS, pre-compiled
-;-----------------------------------------------------------------------
-
-;-----------------------------------------------------------------------
-; two cells stuff
-
-;-----------------------------------------------------------------------
-; ( w1 -- w2 w3 )     
-def_word "2@", "TWOAT", 0
-        .word DUP, CELL, ADD, FETCH, SWAP, FETCH, EXIT
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 --  )     
-def_word "2!", "TWOTO", 0
-        .word SWAP, OVER, STORE, CELL, ADD, STORE, EXIT
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 --  )     
-def_word "2R>", "TWORTO", 0
-        .word RTO, RTO, SWAP, EXIT
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 --  )     
-def_word "2>R", "TWOTOR", 0
-        .word SWAP, TOR, TOR, EXIT
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 --  )     
-def_word "2R@", "TWORPAT", 0
-        .word RTO, RTO, TWODUP, TWORTO, EXIT
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 --  )     
-def_word "2DROP", "TWODROP", 0
-        .word DROP, DROP, EXIT
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 --  )     
-def_word "2DUP", "TWODUP", 0
-        .word OVER, OVER, EXIT
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 --  )     
-def_word "2OVER", "TWOOVER", 0
-        .word TWOTOR, TWODUP, TWORTO, TWOSWAP, EXIT
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 --  )     
-def_word "2SWAP", "TWOSWAP", 0
-        .word ROT, TOR, ROT, RTO, EXIT
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 --  )     
-def_word "CELL+", "CELLADD", 0
-        .word CELL, ADD, EXIT
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 --  )     
-def_word "CELLS", "CELLS", 0
-        ; cells is two 
-        .word SFHL, EXIT
-
-;-----------------------------------------------------------------------
-; BEWARE, MUST BE AT END OF COMPOSED ! 
-;-----------------------------------------------------------------------
-; ( w1 -- w2 w3 )     
-def_word "NULL", "NULL", 0
-        .word FALSE, EXIT
-
-;-----------------------------------------------------------------------
-; END OF CODE
-.end
-
 ;-----------------------------------------------------------------------
 ; to reviews
-;-----------------------------------------------------------------------
-; ( w1 -- ($0000 - w1) ) 
-def_word "NEGATE", "NEGATE", 0
-        lda #$00
-        bne cpt_
-
-;-----------------------------------------------------------------------
-; ( w1 -- ($FFFF - w1) ) 
-def_word "INVERT", "INVERT", 0
-        lda #$FF
-cpt_:
-        pha
-        sec
-        sbc 0, x
-        sta 0, x
-        pla
-        sbc 1, x
-        sta 1, x
-        jmp next_
-
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 w4 -- (w1 w2 + w3 w4) ) 
 def_word "D+", "DADD", 0
@@ -1402,10 +1354,10 @@ def_word "ROT", "ROT", 0
         sta 4, x
         lda 3, x
         sta 5, x
-        lda 1, x
-        sta 3, x
         lda 0, x
         sta 2, x
+        lda 1, x
+        sta 3, x
         clc 
         bcc putw
 

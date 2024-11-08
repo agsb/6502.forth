@@ -208,3 +208,19 @@
 .END
 ```
 
+## interrupt cascate counter, 42 cc, ~49.7 days in milliseconds
+
+* = $0000
+0000   78                   SEI                ;(2)
+0001   D8                   CLD                ;(2)
+0002   2C 00 00             BIT $0000          ;(4)
+0005   E6 00                INC $00            ;(5)
+0007   D0 0A                BNE L0013          ;(2)
+0009   E6 01                INC $01            ;(5)
+000B   D0 06                BNE L0013          ;(2)
+000D   E6 02                INC $02            ;(5)
+000F   D0 02                BNE L0013          ;(2)
+0011   E6 03                INC $03            ;(5)
+0013   58         L0013     CLI                ;(2)
+0014   40                   RTI                ;(6)
+                            .END

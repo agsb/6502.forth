@@ -312,7 +312,7 @@ main:
 ;  init of lib6502 emulator 
 ;---------------------------------------------------------------------
 ;
-getch:
+getchar:
         lda $E000
 
 eofs:
@@ -320,7 +320,7 @@ eofs:
         cmp #$FF ; also clean carry :)
         beq byes
 
-putch:
+putchar:
         sta $E000
         rts
 
@@ -812,6 +812,34 @@ bran_:
 def_word "LIT", "LIT", 0
         jmp DOCON
 
+;----------------------------------------------------------------------
+; ( w1 -- )  code a word in ASCII hexadecimal
+def_word ".", "DOT", 0
+	lda 0, x
+	jsr puthex
+	lda 1, x
+	jsr puthex
+	inx
+	inx
+	jmp next_
+
+puthex:
+    pha
+    ror
+    ror
+    ror
+    ror
+    jsr @conv
+    pla
+@conv:
+    and #$0F
+    ora #$30
+    cmp #$3A
+    bcc @ends
+    adc #$06
+@ends:
+    jmp putchar
+
 ;-----------------------------------------------------------------------
 ;
 ; Forth stuff:
@@ -875,7 +903,12 @@ link_: ; next reference
 
 ;-----------------------------------------------------------------------
 jump_:  ; creed, do the jump
+        
         jmp (wk)
+        ; alternate
+        jsr puthex
+        jmp next_
+        
 
 ;-----------------------------------------------------------------------
 ; process a interrupt, could be a pool, void for now
@@ -998,9 +1031,17 @@ upsv_:
 
 ;-----------------------------------------------------------------------
 ; ( -- w )  reference of forth internal word buffer 
-; hold a 31 chars, about a Tera * Exa decimal number
+; must hold at least 84 chars, but 72 is enough
 def_word "TIB", "TIB", 0
         ldy #uTIB
+        clc
+        bcc upsv_
+
+;-----------------------------------------------------------------------
+; ( -- w )  reference of forth internal word buffer 
+; 
+def_word "TOIN", "TOIN", 0
+        ldy #uTOIN
         clc
         bcc upsv_
 

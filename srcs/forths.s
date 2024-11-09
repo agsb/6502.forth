@@ -164,9 +164,6 @@ TRUE = -1
 ; cell size, two bytes, 16-bit
 CELL = 2
 
-; forth stack size
-STACKSIZE = $18 ; 24 cells
-
 ; forth TIB terminal input area
 TERMINAL  = $50 + 4
 
@@ -184,60 +181,87 @@ IMMEDIATE = FLAG_IMM
 ; maximum length of words
 LENGTH = 15
 
+; alias for user area
+
+uVOID   = 0
+uDP     = 2
+uCP     = 4
+uLAST   = 6
+uLATEST = 8
+uSTATE  = 10
+uBASE   = 12
+uTIB    = 14
+uTOIN   = 16
+uTAIL   = 18
+uHEAP   = 20
+uTASK   = 22
+uPAGE   = 24
+uSCR    = 26
+uBLK    = 28
+uDEV    = 30
+
+;-----------------------------------------------------------------------
+; BEWARE for use of 6502.toy
+;
+; $0000 to $003F reserved for bios
+; $0100 to $013F reserved for bios
+;
+
 ;-----------------------------------------------------------------------
 .segment "ZERO"
-
-; just left $00 to $3F for extras, eg. SWEET-16, MONITOR, etc
 
 * = $40
 
 intflag:        .byte $0
 stsflag:        .byte $0
+
 psave:          .byte $0
 asave:          .byte $0
+
 xsave:          .byte $0
 ysave:          .byte $0
 
-ipt:    .word $0
-upt:    .word $0
-dp:    .word $0
-wrk:    .word $0
+ssave:          .byte $0
+fsave:          .byte $0
+
+ip:     .word $0
+up:     .word $0
+dp:     .word $0
+wk:     .word $0
 
 ; extra dummies, 
-; must be 4 for multiply and division
-N:      
-one:    .word $0
-two:    .word $0
-six:    .word $0
-ten:    .word $0
+ns:     .res 8
+
+; alias
+
+one = ns + 0
+two = ns + 2
+six = ns + 4
+ten = ns + 6
 
 ;-----------------------------------------------------------------------
 ; bottom of data stack
 S0 = $00FF
-;-----------------------------------------------------------------------
-* = $0100
-
-tib:
-.res TERMINAL, $0
 
 ;-----------------------------------------------------------------------
 ; bottom of return stack
 R0 = $01FF
+
 ;-----------------------------------------------------------------------
-* = $0200
 
 ;-----------------------------------------------------------------------
 ;
 ; leave space for page zero, hard stack,
 ; and buffers, locals, stacks, etc
 ;
-* = $1000
-;-----------------------------------------------------------------------
-
 .segment "CODE"
+
+* = $1000
+
 
 boot:
         ; prepare hardware 
+        nop
         jmp main
 
 user:   .word $0    ; start of user area
@@ -310,6 +334,10 @@ byes:
 
 ;-----------------------------------------------------------------------
 ; forth primitives
+; A is for dummy
+; X is the data stack index
+; Y is zero almost time, by next_
+; stacks grows backwards, push decreases, pull increases
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
@@ -339,7 +367,7 @@ def_word "ASFL", "ASFL", 0
 ;-----------------------------------------------------------------------
 ; ( w1 -- (w1 >> 1) ) logical right 
 ; ????
-def_word "SFHR", "SFHR", 0
+def_word "LFHR", "LFHR", 0
         lsr 0, x
         ror 1, x
         jmp next_
@@ -603,8 +631,28 @@ def_word "@", "FETCH", 0
         jmp next_
 
 ;-----------------------------------------------------------------------
+; ( w1 w2 -- )  
+def_word "+!", "ADDTO", 0
+        clc
+        lda (0, x)
+        adc 2, x
+        pha
+        inc 0, x
+        bne @bcc
+        inc 1, x
+@bcc:
+        lda (0, x)
+        adc 3, x
+        sta 3, x
+        pla
+        sta 2, x
+        inx
+        inx
+	jmp next_
+
+;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1+1 
-def_word "1+", "INCR", 0
+def_word "1+", "ONEINCR", 0
         inc 0, x
         bne @bne
         inc 1, x
@@ -613,7 +661,7 @@ def_word "1+", "INCR", 0
 
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1-1 
-def_word "1-", "DECR", 0
+def_word "1-", "ONEDECR", 0
         lda 0, x
         bne @bne
         dec 1, x
@@ -622,11 +670,31 @@ def_word "1-", "DECR", 0
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- )  
-def_word "+!", "ADDTO", 0
-        ; zzzz
-	jmp next_
-
+; ( w1  -- w2 ) w2 = w1+2 
+def_word "2+", "TWOINCR", 0
+        ; next reference
+        lda 0, x
+        clc
+        adc #$02
+        sta 0, x
+        bcc @bcc
+        inc 1, x
+@bcc:
+        jmp next_
+        
+;-----------------------------------------------------------------------
+; ( w1  -- w2 ) w2 = w1-2 
+def_word "2+", "TWODECR", 0
+        ; next reference
+        lda 0, x
+        sec
+        sbc #$02
+        sta 0, x
+        bcc @bcc
+        dec 1, x
+@bcc:
+        jmp next_
+        
 ;-----------------------------------------------------------------------
 ; ( w -- w ) assure word is even, because CELL is 2 
 def_word "ALIGN", "ALIGN", 0
@@ -642,25 +710,25 @@ def_word "ALIGN", "ALIGN", 0
 ; ( w1 -- )  EXEC is done by nest in MTC
 def_word "EXECUTE", "EXEC", 0
         lda 0, x
-        sta wrk + 0
+        sta wk + 0
         lda 1, x
-        sta wrk + 1
+        sta wk + 1
         jmp nest_
 
 ;-----------------------------------------------------------------------
 ; ( -- )  for jump into a native code
 ; wise native code ends with unnest
 def_word ":$", "COLON_CODE", 0
-        jmp (ipt)
+        jmp (ip)
 
 ;-----------------------------------------------------------------------
 ; ( -- ) zzzz for return from native code 
 ; the code is not inner mode ! must compile native code for it
 def_word ";$", "COMMA_CODE", IMMEDIATE
         lda here + 0
-        sta ipt  + 0
+        sta ip  + 0
         lda here + 1
-        sta ipt + 1
+        sta ip + 1
         jmp next_
 
 where_i_am:
@@ -672,40 +740,40 @@ bump_:
         ; next reference
         lda #$02
         clc
-        adc ipt + 0
-        sta ipt + 0
+        adc ip + 0
+        sta ip + 0
         bcc @bcc
-        inc ipt + 1
+        inc ip + 1
 @bcc:
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( -- ipt )  
+; ( -- )  
 def_word "(DODOE)", "DODOES", 0
         ; zzzz
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( -- ipt ) dovar  
+; ( -- ip ) dovar  
 def_word "(DOVAR)", "DOVAR", 0
         dex
         dex
-        lda ipt + 0
+        lda ip + 0
         sta 0, x
-        lda ipt + 1
+        lda ip + 1
         sta 1, x
         jmp bump_
 
 ;-----------------------------------------------------------------------
-; ( -- (ipt) ) docon 
+; ( -- (ip) ) docon 
 def_word "(DOCON)", "DOCON", 0
         dex
         dex
         ldy #1
-        lda (ipt), y
+        lda (ip), y
         sta 1, x
         dey 
-        lda (ipt), y
+        lda (ip), y
         sta 0, x
         jmp bump_
         
@@ -724,19 +792,19 @@ def_word "0BRANCH", "ZBRANCH", 0
 def_word "BRANCH", "BRANCH", 0
 bran_:
         ldy #1
-        lda (ipt), y
-        sta wrk + 1
+        lda (ip), y
+        sta wk + 1
         iny
-        lda (ipt), y
-        sta wrk + 0
+        lda (ip), y
+        sta wk + 0
 
         clc
-        lda ipt + 0
-        adc wrk + 0
-        sta ipt + 0
-        lda ipt + 1
-        adc wrk + 1
-        sta ipt + 1
+        lda ip + 0
+        adc wk + 0
+        sta ip + 0
+        lda ip + 1
+        adc wk + 1
+        sta ip + 1
         jmp next_
 
 ;-----------------------------------------------------------------------
@@ -748,7 +816,7 @@ def_word "LIT", "LIT", 0
 ;
 ; Forth stuff:
 ;
-; ipt MUST be preserved and reserved for those routines
+; ip MUST be preserved and reserved for those routines
 ;
 ; as is, Minimal Thread Code for 6502
 ;
@@ -757,9 +825,9 @@ def_word "LIT", "LIT", 0
 def_word "EXIT", "EXIT", 0
 unnest_:  ; pull from return stack, aka semis ;S
         pla
-        sta ipt + 1
+        sta ip + 1
         pla
-        sta ipt + 0
+        sta ip + 0
 
 ;-----------------------------------------------------------------------
 next_:  
@@ -770,44 +838,44 @@ next_:
 ;-----------------------------------------------------------------------
 look_:
         ldy #1
-        lda (ipt), y
-        sta wrk + 1
+        lda (ip), y
+        sta wk + 1
         dey
-        lda (ipt), y
-        sta wrk + 0
+        lda (ip), y
+        sta wk + 0
 
         ; next reference
         lda #$02
         clc
-        adc ipt + 0
-        sta ipt + 0
+        adc ip + 0
+        sta ip + 0
         bcc pick_
-        inc ipt + 1
+        inc ip + 1
 
 ;-----------------------------------------------------------------------
 pick_:  ; unique in Minimal Thread Code
-        lda wrk + 1
+        lda wk + 1
         cmp #>ends+1    ; init of heap compose dictionary
         bmi jump_
 
 ;-----------------------------------------------------------------------
 nest_:  ; push into return stack, aka docol
-        lda ipt + 0
+        lda ip + 0
         pha
-        sta ipt + 1
+        sta ip + 1
         pha
 
 ;-----------------------------------------------------------------------
 link_: ; next reference
-        lda wrk + 0
-        sta ipt + 0
-        lda wrk + 1
-        sta ipt + 1
+        lda wk + 0
+        sta ip + 0
+        lda wk + 1
+        sta ip + 1
         jmp next_
 
 ;-----------------------------------------------------------------------
 jump_:  ; creed, do the jump
-        jmp (wrk)
+        jmp (wk)
 
 ;-----------------------------------------------------------------------
 ; process a interrupt, could be a pool, void for now
@@ -837,7 +905,6 @@ def_word "RP@", "RPAT", 0
         tsx
         txa
         ldx xsave
-        iny
         bne lsbs_
 
 ;-----------------------------------------------------------------------
@@ -872,8 +939,26 @@ def_word "4", "FOUR", 0
 
 ;-----------------------------------------------------------------------
 ; ( -- w)  
-def_word "BL", "BLANK", 0
-        lda #32
+def_word "BL", "BL", 0
+        lda #$20
+        bne lsbs_
+
+;-----------------------------------------------------------------------
+; ( -- w)  
+def_word "CR", "CR", 0
+        lda #$10
+        bne lsbs_
+
+;-----------------------------------------------------------------------
+; ( -- w)  
+def_word "BS", "BS", 0
+        lda #$8
+        bne lsbs_
+
+;-----------------------------------------------------------------------
+; ( -- w)  
+def_word "TB", "TB", 0
+        lda #$9
         bne lsbs_
 
 ;-----------------------------------------------------------------------
@@ -883,13 +968,13 @@ def_word "CELL", "CCELL", 0
         bne lsbs_
 
 ;-----------------------------------------------------------------------
-; ( -- )  used to reset S0, NOT to change offset index
+; ( -- )  used to reset S0
 def_word "SP!", "TOSP", 0
         ldx #$FF
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( -- )  used to reset R0, NOT to change offset index
+; ( -- )  used to reset R0
 def_word "RP!", "TORP", 0
         ldx #$FF
         txs
@@ -900,36 +985,31 @@ def_word "RP!", "TORP", 0
 ;-----------------------------------------------------------------------
 ; ( -- w )  reference of forth internal dictionary heap
 def_word "DP", "DP", 0
+        ldy #uDP
+upsv_:
         dex
         dex
-        lda #<dp
-        sta 0, x
-        lda #>dp
+        lda (up), y
         sta 1, x
+        dey
+        lda (up), y
+        sta 0, x
         jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( -- w )  reference of forth internal word buffer 
 ; hold a 31 chars, about a Tera * Exa decimal number
 def_word "TIB", "TIB", 0
-        dex
-        dex
-        lda #<tib
-        sta 0, x
-        lda #>tib
-        sta 1, x
-        jmp next_
+        ldy #uTIB
+        clc
+        bcc upsv_
 
 ;-----------------------------------------------------------------------
 ; ( -- w )  reference of forth internal doctionary last word 
 def_word "LATEST", "LATEST", 0
-        dex
-        dex
-        lda #<last
-        sta 0, x
-        lda #>last
-        sta 1, x
-        jmp next_
+        ldy #uLATEST
+        clc
+        bcc upsv_
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- ($0000 - w1) ) 
@@ -1094,13 +1174,13 @@ def_word "2SWAP", "TWOSWAP", 0
 ; ( w1 --  w1 + CELL )     
 def_word "CELL+", "CELLADD", 0
         ; cells is two 
-        .word INCR, INCR, EXIT
+        .word ONEINCR, ONEINCR, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w2 + 2 * w1 )     
 ; cells is two 
 def_word "CELLS", "CELLS", 0
-        .word SFHL, EXIT
+        .word ASFL, EXIT
 
 ;-----------------------------------------------------------------------
 ; BEWARE, MUST BE AT END OF PRE-COMPILED-COMPOSED ! 
@@ -1239,9 +1319,9 @@ immediate:
 execute:
 
         lda #>outerptr
-        sta ipt + 1
+        sta ip + 1
         lda #<outerptr
-        sta ipt + 0
+        sta ip + 0
 
         jmp pick_
 

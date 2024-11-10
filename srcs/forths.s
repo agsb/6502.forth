@@ -32,24 +32,24 @@
 ;/*
 ;note
 ;
-;   done:
+;       09/11/2024        
+;       review bios at 6502.toy, define $040, $140, $400, $1000 limits
 ;
-;   06/11/2024
+;       06/11/2024
 ;       house clean
 ;       wise keep Y=0 in next, 
 ;       keep X as dedicated data stack index.
 ;       rewrite for not splited MSB LSB stacks. 
-;            It was a waste cycles for every @ !
 ;        
-;   05/11/2024
+;       05/11/2024
 ;       rewrite for use stacks at pages zero and one
 ;
-;   03/11/2024
+;       03/11/2024
 ;       using absolute splited stacks. 
 ;       interrupt service from R65F11, 
 ;       also http://wilsonminesco.com/6502primer/IRQconx.html
 ;           
-;   todo:
+;todo
 ;       still no vocabularies.
 ;
 ;*/
@@ -60,9 +60,10 @@
 ;	data stack in page zero,
 ;	return stack in page one
 ;	and using minimal thread code
-;	Fig-Forth alike.
+;	eForth and Fig-Forth, alike.
 ;	
-;	uses X as data stack index, Y as keeped zero 
+;	uses X as data stack index, 
+;       Y as keeped zero 
 ;	
 ;	(still) non-rellocable code, 
 ;	(still) non-optimized code,
@@ -70,11 +71,13 @@
 ;	FALSE is $0000 (0) TRUE is $FFFF (-1)
 ;	SP0 and RP0 uses $FF as botton
 ;	
-;	stacks LSB and MSB 
 ;	stacks grows backwards, as -2 -1 0 1 2 3 ...
-;	0 is TOS, 1 is NOS,
+;	0 is TOS, 1 is NOS, 2 is SOS, 3 is FORGET.
 ;	
-;	No real CFA, always is next cell after c-name
+;	Mixed header and code dictionary, no need CFA
+;
+;       the next cell after c-name is always a CFA
+;
 ;	No need of DOCOL at CFA, vide MTC
 ;	
 ;       header:
@@ -82,7 +85,7 @@
 ;               byte:   .size_flag
 ;               name:   .byte * lenght
 ;       code:   
-;                all bytes following name
+;               all bytes following name
 ;
 ;       why another Forth? To learn how to.
 ;
@@ -192,6 +195,7 @@ uSTATE  = 10
 uBASE   = 12
 uTIB    = 14
 uTOIN   = 16
+
 uTAIL   = 18
 uHEAP   = 20
 uTASK   = 22
@@ -206,7 +210,6 @@ uDEV    = 30
 ; $0000 to $003F reserved for bios
 ; $0100 to $013F reserved for bios
 ;
-
 ;-----------------------------------------------------------------------
 .segment "ZERO"
 
@@ -248,8 +251,6 @@ S0 = $00FF
 R0 = $01FF
 
 ;-----------------------------------------------------------------------
-
-;-----------------------------------------------------------------------
 ;
 ; leave space for page zero, hard stack,
 ; and buffers, locals, stacks, etc
@@ -257,7 +258,6 @@ R0 = $01FF
 .segment "CODE"
 
 * = $1000
-
 
 boot:
         ; prepare hardware 
@@ -341,35 +341,33 @@ byes:
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
-; ( w1 -- (w1 << 1) ) roll left
-; ????
+; ( w1 -- (w1 << 1) ) roll left, C -> b0, b7 -> C
 def_word "RSFL", "RSFL", 0
+        clc
         rol 0, x
         rol 1, x
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1 -- (w1 >> 1) ) roll right
-; ????
+; ( w1 -- (w1 >> 1) ) roll right, C -> b7, b0 -> C
 def_word "RSFR", "RSFR", 0
-        ror 0, x
+        clc
         ror 1, x
+        ror 0, x
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1 -- (w1 << 1) ) arithmetic left
-; ????
-def_word "ASFL", "ASFL", 0
+; ( w1 -- (w1 << 1) ) arithmetic left, 0 -> b0, b7 -> C
+def_word "2*", "ASFL", 0
         asl 0, x
         rol 1, x
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1 -- (w1 >> 1) ) logical right 
-; ????
-def_word "LFHR", "LFHR", 0
-        lsr 0, x
-        ror 1, x
+; ( w1 -- (w1 >> 1) ) logical right, 0 -> b7, b0 -> C 
+def_word "2/", "LFHR", 0
+        lsr 1, x
+        ror 0, x
         jmp next_
 
 ;-----------------------------------------------------------------------
@@ -684,7 +682,7 @@ def_word "2+", "TWOINCR", 0
         
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1-2 
-def_word "2+", "TWODECR", 0
+def_word "2-", "TWODECR", 0
         ; next reference
         lda 0, x
         sec
@@ -705,6 +703,62 @@ def_word "ALIGN", "ALIGN", 0
         rol
         sta 0, x
         jmp next_
+
+;-----------------------------------------------------------------------
+; ( w1 -- ($0000 - w1) ) 
+def_word "NEGATE", "NEGATE", 0
+        lda #$00
+        bne cpt_
+
+;-----------------------------------------------------------------------
+; ( w1 -- ($FFFF - w1) ) 
+def_word "INVERT", "INVERT", 0
+        lda #$FF
+cpt_:
+        pha
+        sec
+        sbc 0, x
+        sta 0, x
+        pla
+        sbc 1, x
+        sta 1, x
+        jmp next_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 w3 -- w3 w1 w2 ) 
+def_word "ROT", "ROT", 0
+        lda 4, x
+        pha
+        lda 5, x
+        pha
+        lda 2, x
+        sta 4, x
+        lda 3, x
+        sta 5, x
+        lda 0, x
+        sta 2, x
+        lda 1, x
+        sta 3, x
+        clc 
+        bcc putw
+
+;-----------------------------------------------------------------------
+; ( w1 w2 w3 -- w2 w3 w1 ) 
+def_word "-ROT", "BROT", 0
+        lda 0, x
+        pha
+        lda 0 + sps, x
+        pha
+        lda 1, x
+        sta 0, x
+        lda 1 + sps, x
+        sta 0 + sps, x
+        lda 2, x
+        sta 1, x
+        lda 2 + sps, x
+        sta 1 + sps, x
+        clc 
+        bcc putw
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- )  EXEC is done by nest in MTC
@@ -736,6 +790,17 @@ where_i_am:
         rts
 
 ;-----------------------------------------------------------------------
+; ( -- )  
+def_word "LIT", "LIT", 0
+        jmp DOCON
+
+;-----------------------------------------------------------------------
+; ( -- )  
+def_word "(DODOE)", "DODOES", 0
+        ; zzzz
+        jmp next_
+
+;-----------------------------------------------------------------------
 bump_:
         ; next reference
         lda #$02
@@ -745,12 +810,6 @@ bump_:
         bcc @bcc
         inc ip + 1
 @bcc:
-        jmp next_
-
-;-----------------------------------------------------------------------
-; ( -- )  
-def_word "(DODOE)", "DODOES", 0
-        ; zzzz
         jmp next_
 
 ;-----------------------------------------------------------------------
@@ -806,11 +865,6 @@ bran_:
         adc wk + 1
         sta ip + 1
         jmp next_
-
-;-----------------------------------------------------------------------
-; ( -- )  
-def_word "LIT", "LIT", 0
-        jmp DOCON
 
 ;----------------------------------------------------------------------
 ; ( w1 -- )  code a word in ASCII hexadecimal
@@ -908,7 +962,6 @@ jump_:  ; creed, do the jump
         ; alternate
         jsr puthex
         jmp next_
-        
 
 ;-----------------------------------------------------------------------
 ; process a interrupt, could be a pool, void for now
@@ -1052,26 +1105,6 @@ def_word "LATEST", "LATEST", 0
         clc
         bcc upsv_
 
-;-----------------------------------------------------------------------
-; ( w1 -- ($0000 - w1) ) 
-def_word "NEGATE", "NEGATE", 0
-        lda #$00
-        bne cpt_
-
-;-----------------------------------------------------------------------
-; ( w1 -- ($FFFF - w1) ) 
-def_word "INVERT", "INVERT", 0
-        lda #$FF
-cpt_:
-        pha
-        sec
-        sbc 0, x
-        sta 0, x
-        pla
-        sbc 1, x
-        sta 1, x
-        jmp next_
-
 ;----------------------------------------------------------------------
 ; common must
 ;
@@ -1157,13 +1190,13 @@ def_word ">", "GTH", 0
         .word SWAP, LTH, EXIT 
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- (w2) (w3) )     
-def_word "ROT", "ROTF", 0
+; ( w1 w2 w3 -- w2 w3 w1 )     
+def_word "ROT2", "ROTF2", 0
         .word TOR, SWAP, RTO, SWAP, EXIT
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- (w2) (w3) )     
-def_word "-ROT", "ROTB", 0
+; ( w1 w2 w3 -- w3 w1 w2 )     
+def_word "-ROT2", "ROTB2", 0
         .word SWAP, TOR, SWAP, RTO, EXIT
 
 ;-----------------------------------------------------------------------
@@ -1237,6 +1270,9 @@ def_word "NULL", "NULL", 0
 ;-----------------------------------------------------------------------
 ; search the dictionary for a word, returns the cfa or null
 ;
+
+create_:
+
 find_:
 
 ; load last
@@ -1481,42 +1517,6 @@ def_word "D-", "DSUB", 0
         sta 3 + sps, x
         clc
         bcc drop2
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 -- w3 w1 w2 ) 
-def_word "ROT", "ROT", 0
-        lda 4, x
-        pha
-        lda 5, x
-        pha
-        lda 2, x
-        sta 4, x
-        lda 3, x
-        sta 5, x
-        lda 0, x
-        sta 2, x
-        lda 1, x
-        sta 3, x
-        clc 
-        bcc putw
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 -- w2 w3 w1 ) 
-def_word "-ROT", "BROT", 0
-        lda 0, x
-        pha
-        lda 0 + sps, x
-        pha
-        lda 1, x
-        sta 0, x
-        lda 1 + sps, x
-        sta 0 + sps, x
-        lda 2, x
-        sta 1, x
-        lda 2 + sps, x
-        sta 1 + sps, x
-        clc 
-        bcc putw
 
 ;-----------------------------------------------------------------------
 ; prepare for mult or divd

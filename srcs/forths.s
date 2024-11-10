@@ -1154,32 +1154,6 @@ def_word "(FIND)'", "FINDF", 0
         .word DROP, EXIT
 
 ;-----------------------------------------------------------------------
-; ( -- )    find a word in dictionary, return CFA or FALSE (0x0)  
-; zzzz
-def_word "'", "TICK", 0
-        .word FINDF, COMMA, EXIT
-
-;-----------------------------------------------------------------------
-; ( -- )      
-def_word "HERE", "HERE", 0
-        .word DP, FETCH, EXIT 
-
-;-----------------------------------------------------------------------
-; ( -- )    compile a word in dictionary, from TOS  
-def_word "DP+", "DPADD", 0
-        .word DP, FETCH, ADD, DP, STORE, EXIT 
-
-;-----------------------------------------------------------------------
-; ( -- )    compile a word in dictionary, from TOS  
-def_word ",", "COMMA", 0
-        .word DP, FETCH, STORE, CELL, DPADD, EXIT
-
-;-----------------------------------------------------------------------
-; ( -- )      
-def_word "ALLOC", "ALLOC", 0
-        .word CELLS, DPADD, EXIT
-
-;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 < w2) ) 
 def_word "<", "LTH", 0
         .word INVERT, ADD, LTZ, EXIT
@@ -1257,7 +1231,103 @@ def_word "CELLS", "CELLS", 0
         .word ASFL, EXIT
 
 ;-----------------------------------------------------------------------
-; BEWARE, MUST BE AT END OF PRE-COMPILED-COMPOSED ! 
+; borrow from eForth
+;-----------------------------------------------------------------------
+
+;-----------------------------------------------------------------------
+; ( -- )      
+def_word "HERE", "HERE", 0
+        .word DP, FETCH, EXIT 
+
+;-----------------------------------------------------------------------
+; ( -- )    compile a word in dictionary, from TOS  
+def_word "DP+", "DPADD", 0
+        .word DP, FETCH, ADD, DP, STORE, EXIT 
+
+;-----------------------------------------------------------------------
+; ( -- )      
+def_word "ALLOC", "ALLOC", 0
+        .word CELLS, DPADD, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )    compile a word in dictionary, from TOS  
+def_word ",", "COMMA", 0
+        .word DP, FETCH, STORE, CELL, DPADD, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )    find a word in dictionary, return CFA or FALSE (0x0)  
+def_word "'", "TICK", 0
+        .word FINDF, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )    find a word in dictionary, return CFA or FALSE (0x0)  
+def_word "POSTPONE", "POSTPONE", IMMEDIATE
+        .word TICK, COMMA, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )     GO is AHEAD
+def_word "GO", "GO", IMMEDIATE
+        .word POSTPONE, BRANCH, 
+        .word HERE, DOLIT, ZERO, COMMA, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )     
+def_word "IF", "IF", IMMEDIATE
+        .word POSTPONE, ZBRANCH, 
+        .word HERE, DOLIT, ZERO, COMMA, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )     
+def_word "THEN", "THEN", IMMEDIATE
+        .word HERE, SWAP, STORE, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )     
+def_word "ELSE", "ELSE", IMMEDIATE
+        .word GO, SWAP, THEN, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )     
+def_word "BEGIN", "BEGIN", IMMEDIATE
+        .word HERE ;
+
+;-----------------------------------------------------------------------
+; ( -- )     
+def_word "AGAIN", "AGAIN", IMMEDIATE
+        .word POSTPONE, BRANCH, COMMA, EXIT 
+
+;-----------------------------------------------------------------------
+; ( -- )     
+def_word "UNTIL", "UNTIL", IMMEDIATE
+        .word POSTPONE, QBRANCH, COMMA, EXIT 
+
+;-----------------------------------------------------------------------
+; ( -- )     
+def_word "WHILE", "WHILE", IMMEDIATE
+        .word IF, SWAP, EXIT 
+
+;-----------------------------------------------------------------------
+; ( -- )     
+def_word "FOR", "FOR", IMMEDIATE
+        .word POSTPONE, TOR, HERE, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )     
+def_word "NEXT", "NEXT", IMMEDIATE
+        .word POSTPONE, DONEXT, COMMA, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )     TO is AFT
+def_word "TO", "TO", IMMEDIATE
+        .word DROP, GO, BEGIN, SWAP, EXIT
+
+;-----------------------------------------------------------------------
+
+
+
+
+;-----------------------------------------------------------------------
+; BEWARE, MUST BE AT END OF PRE-POSTPONED-COMPOSED ! 
 ;-----------------------------------------------------------------------
 ; ( w1 -- w2 w3 )     
 def_word "NULL", "NULL", 0

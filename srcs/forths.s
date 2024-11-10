@@ -1265,16 +1265,18 @@ def_word "POSTPONE", "POSTPONE", IMMEDIATE
         .word TICK, COMMA, EXIT
 
 ;-----------------------------------------------------------------------
+;       eForth alike
+;-----------------------------------------------------------------------
 ; ( -- )     GO is AHEAD
 def_word "GO", "GO", IMMEDIATE
         .word POSTPONE, BRANCH, 
-        .word HERE, DOLIT, ZERO, COMMA, EXIT
+        .word HERE, ZERO, COMMA, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "IF", "IF", IMMEDIATE
         .word POSTPONE, ZBRANCH, 
-        .word HERE, DOLIT, ZERO, COMMA, EXIT
+        .word HERE, ZERO, COMMA, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
@@ -1284,7 +1286,7 @@ def_word "THEN", "THEN", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "ELSE", "ELSE", IMMEDIATE
-        .word GO, SWAP, THEN, EXIT
+        .word POSTPONE, GO, SWAP, POSTPONE, THEN, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
@@ -1304,7 +1306,13 @@ def_word "UNTIL", "UNTIL", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "WHILE", "WHILE", IMMEDIATE
-        .word IF, SWAP, EXIT 
+        .word POSTPONE, IF, SWAP, EXIT 
+
+;-----------------------------------------------------------------------
+; ( -- )     
+def_word "REPEAT", "REPEATE", IMMEDIATE
+        .word POSTPONE, AGAIN,
+        .word HERE, SWAP, STORE, EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
@@ -1319,7 +1327,7 @@ def_word "NEXT", "NEXT", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; ( -- )     TO is AFT
 def_word "TO", "TO", IMMEDIATE
-        .word DROP, GO, BEGIN, SWAP, EXIT
+        .word DROP, POSTPONE, GO, POSTPONE, BEGIN, SWAP, EXIT
 
 ;-----------------------------------------------------------------------
 

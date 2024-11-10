@@ -1265,7 +1265,7 @@ def_word "POSTPONE", "POSTPONE", IMMEDIATE
         .word TICK, COMMA, EXIT
 
 ;-----------------------------------------------------------------------
-;       eForth alike
+;       eForth alike, ZZZZ MUST USE OFFSETS NOT ABSOLUTE
 ;-----------------------------------------------------------------------
 ; ( -- )     GO is AHEAD
 def_word "GO", "GO", IMMEDIATE

@@ -209,7 +209,7 @@
 ```
 
 ## interrupt cascate counter, 42 cc, ~49.7 days in milliseconds
-
+```
 * = $0000
 0000   78                   SEI                ;(2)
 0001   D8                   CLD                ;(2)
@@ -223,4 +223,5 @@
 0011   E6 03                INC $03            ;(5)
 0013   58         L0013     CLI                ;(2)
 0014   40                   RTI                ;(6)
-                            .END
+.END
+```

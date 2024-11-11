@@ -456,6 +456,42 @@ def_word "SWAP", "SWAP", 0
         bcc putw_
 
 ;-----------------------------------------------------------------------
+; ( w1 w2 w3 -- w3 w1 w2 ) 
+def_word "ROT", "ROT", 0
+        lda 4, x
+        pha
+        lda 5, x
+        pha
+        lda 2, x
+        sta 4, x
+        lda 3, x
+        sta 5, x
+        lda 0, x
+        sta 2, x
+        lda 1, x
+        sta 3, x
+        clc 
+        bcc putw_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 w3 -- w2 w3 w1 ) 
+def_word "-ROT", "BROT", 0
+        lda 2, x
+        pha
+        lda 3, x
+        pha
+        lda 4, x
+        sta 2, x
+        lda 5, x
+        sta 3, x
+        lda 0, x
+        sta 4, x
+        lda 1, x
+        sta 5, x
+        clc 
+        bcc putw_
+
+;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 AND w2) ) 
 def_word "AND", "ANDT", 0
         lda 2, x
@@ -763,42 +799,6 @@ cpt_:
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 w3 -- w3 w1 w2 ) 
-def_word "ROT", "ROT", 0
-        lda 4, x
-        pha
-        lda 5, x
-        pha
-        lda 2, x
-        sta 4, x
-        lda 3, x
-        sta 5, x
-        lda 0, x
-        sta 2, x
-        lda 1, x
-        sta 3, x
-        clc 
-        bcc putw
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 -- w2 w3 w1 ) 
-def_word "-ROT", "BROT", 0
-        lda 0, x
-        pha
-        lda 0 + sps, x
-        pha
-        lda 1, x
-        sta 0, x
-        lda 1 + sps, x
-        sta 0 + sps, x
-        lda 2, x
-        sta 1, x
-        lda 2 + sps, x
-        sta 1 + sps, x
-        clc 
-        bcc putw
-
-;-----------------------------------------------------------------------
 ; ( w1 -- )  EXEC is done by nest in MTC
 def_word "EXECUTE", "EXEC", 0
         lda 0, x
@@ -870,7 +870,7 @@ def_word "(DOCON)", "DOCON", 0
         
 ;-----------------------------------------------------------------------
 ; ( -- )  
-def_word "0BRANCH", "ZBRANCH", 0
+def_word "0BRANCH", "QBRANCH", 0
         inx
         inx
         lda 255, x
@@ -1248,13 +1248,13 @@ def_word "2OVER", "TWOOVER", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 w4 -- w3 w4 w1 w2 )     
 def_word "2SWAP", "TWOSWAP", 0
-        .word ROTF, TOR, ROTF, RTO, EXIT
+        .word ROT, TOR, ROT, RTO, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 --  w1 + CELL )     
 def_word "CELL+", "CELLPLUS", 0
         ; cells is two 
-        .word ONEINCR, ONEINCR, EXIT
+        .word TWOPLUS, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w2 + 2 * w1 )     
@@ -1302,7 +1302,7 @@ def_word "POSTPONE", "POSTPONE", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "IF", "IF", IMMEDIATE
-        .word POSTPONE, ZBRANCH
+        .word POSTPONE, QBRANCH
         .word HERE, ZERO, COMMA, EXIT
 
 ;-----------------------------------------------------------------------
@@ -1330,7 +1330,7 @@ def_word "AGAIN", "AGAIN", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "UNTIL", "UNTIL", IMMEDIATE
-        .word POSTPONE, QBRANCH, 
+        .word POSTPONE, QBRANCH 
         .word HERE, MINUS, COMMA, EXIT 
 
 ;-----------------------------------------------------------------------
@@ -1341,7 +1341,7 @@ def_word "WHILE", "WHILE", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "REPEAT", "REPEAT", IMMEDIATE
-        .word POSTPONE, AGAIN,
+        .word POSTPONE, AGAIN
         .word HERE, SWAP, STORE, EXIT 
 
 ;-----------------------------------------------------------------------
@@ -1353,6 +1353,11 @@ def_word "FOR", "FOR", IMMEDIATE
 ; ( -- )     
 def_word "NEXT", "NEXT", IMMEDIATE
         .word POSTPONE, DONEXT, UNTIL, EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )     
+def_word "DONEXT", "DONEXT", IMMEDIATE
+        .word EXIT
 
 ;-----------------------------------------------------------------------
 
@@ -1579,21 +1584,21 @@ nums_:
         rts
 
 ;-----------------------------------------------------------------------
+
 ;-----------------------------------------------------------------------
 ; to reviews
 ;-----------------------------------------------------------------------
 ; prepare for mult or divd
 opin:
-        ldx spi
         ; pseudo one
-        lda sp0 + 0, x
+        lda 0, x
         sta ten + 0
-        lda sp0 + 0 + sps, x
+        lda 1, x
         sta ten + 1
         ; pseudo two
-        lda sp0 + 1, x
+        lda 2, x
         sta six + 0
-        lda sp0 + 1 + sps, x
+        lda 3, x
         sta six + 1
         ; clear results
         lda #0
@@ -1609,15 +1614,14 @@ opin:
 ; resume from mult or divd
 opout:
         ; copy results
-        ldx spi
         lda two + 0
-        sta sp0 + 0, x
+        sta 0, x
         lda two + 1
-        sta sp0 + 0 + sps, x
+        sta 1, x
         lda one + 0
-        sta sp0 + 1, x
+        sta 2, x
         lda one + 1
-        sta sp0 + 1 + sps, x
+        sta 3, x
         jmp next_
 
 ;-----------------------------------------------------------------------
@@ -1705,4 +1709,6 @@ nmos_:
         adc #$01
         cld
         rts
+
+.end
 

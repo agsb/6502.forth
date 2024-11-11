@@ -493,7 +493,7 @@ def_word "XOR", "XORT", 0
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 + w2) ) 
-def_word "+", "ADD", 0
+def_word "+", "PLUS", 0
         clc
         lda 2, x
         adc 0, x
@@ -505,7 +505,7 @@ def_word "+", "ADD", 0
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 - w2) ) 
-def_word "-", "SUB", 0
+def_word "-", "MINUS", 0
         sec
         lda 2, x
         sbc 0, x
@@ -606,6 +606,44 @@ drop2:
         jmp next_
 
 ;-----------------------------------------------------------------------
+; ( w1 w2 w3 w4 -- (w1 w2 + w3 w4) ) 
+def_word "D+", "DPLUS", 0
+        clc
+        lda 0, x
+        adc 4, x
+        sta 4, x
+        lda 1, x
+        adc 5, x
+        sta 5, x
+        lda 2, x
+        adc 6, x
+        sta 6, x
+        lda 3, x
+        adc 7, x
+        sta 7, x
+        clc
+        bcc drop2
+
+;-----------------------------------------------------------------------
+; ( w1 w2 w3 w4 -- (w1 w2 - w3 w4) ) 
+def_word "D-", "DMINUS", 0
+        sec
+        lda 0, x
+        sbc 4, x
+        sta 4, x
+        lda 1, x
+        sbc 5, x
+        sta 5, x
+        lda 2, x
+        sbc 6, x
+        sta 6, x
+        lda 3, x
+        sbc 7, x
+        sta 7, x
+        clc
+        bcc drop2
+
+;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = 0x00FF AND *w1 
 def_word "C@", "CFETCH", 0
         lda (0,x)
@@ -630,7 +668,7 @@ def_word "@", "FETCH", 0
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- )  
-def_word "+!", "ADDTO", 0
+def_word "+!", "PLUSTO", 0
         clc
         lda (0, x)
         adc 2, x
@@ -650,7 +688,7 @@ def_word "+!", "ADDTO", 0
 
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1+1 
-def_word "1+", "ONEINCR", 0
+def_word "1+", "ONEPLUS", 0
         inc 0, x
         bne @bne
         inc 1, x
@@ -659,7 +697,7 @@ def_word "1+", "ONEINCR", 0
 
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1-1 
-def_word "1-", "ONEDECR", 0
+def_word "1-", "ONEMINUS", 0
         lda 0, x
         bne @bne
         dec 1, x
@@ -669,7 +707,7 @@ def_word "1-", "ONEDECR", 0
 
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1+2 
-def_word "2+", "TWOINCR", 0
+def_word "2+", "TWOPLUS", 0
         ; next reference
         lda 0, x
         clc
@@ -682,7 +720,7 @@ def_word "2+", "TWOINCR", 0
         
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1-2 
-def_word "2-", "TWODECR", 0
+def_word "2-", "TWOMINUS", 0
         ; next reference
         lda 0, x
         sec
@@ -779,12 +817,6 @@ def_word ":$", "COLON_CODE", 0
 ; ( -- ) zzzz for return from native code 
 ; the code is not inner mode ! must compile native code for it
 def_word ";$", "COMMA_CODE", IMMEDIATE
-        lda here + 0
-        sta ip  + 0
-        lda here + 1
-        sta ip + 1
-        jmp next_
-
 where_i_am:
         ; zzzz
         rts
@@ -1156,7 +1188,7 @@ def_word "(FIND)'", "FINDF", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 < w2) ) 
 def_word "<", "LTH", 0
-        .word INVERT, ADD, LTZ, EXIT
+        .word INVERT, PLUS, LTZ, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 > w2) ) 
@@ -1176,12 +1208,12 @@ def_word "-ROT2", "ROTB2", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w2) (w3) )     
 def_word "2@", "TWOAT", 0
-        .word DUP, CELL, ADD, FETCH, SWAP, FETCH, EXIT
+        .word DUP, CELL, PLUS, FETCH, SWAP, FETCH, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 --  )     
 def_word "2!", "TWOTO", 0
-        .word SWAP, OVER, STORE, CELL, ADD, STORE, EXIT
+        .word SWAP, OVER, STORE, CELL, PLUS, STORE, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 --  )     
@@ -1220,7 +1252,7 @@ def_word "2SWAP", "TWOSWAP", 0
 
 ;-----------------------------------------------------------------------
 ; ( w1 --  w1 + CELL )     
-def_word "CELL+", "CELLADD", 0
+def_word "CELL+", "CELLPLUS", 0
         ; cells is two 
         .word ONEINCR, ONEINCR, EXIT
 
@@ -1242,7 +1274,7 @@ def_word "HERE", "HERE", 0
 ;-----------------------------------------------------------------------
 ; ( -- )    compile a word in dictionary, from TOS  
 def_word "DP+", "DPADD", 0
-        .word DP, FETCH, ADD, DP, STORE, EXIT 
+        .word HERE, PLUS, DP, STORE, EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )      
@@ -1252,7 +1284,7 @@ def_word "ALLOC", "ALLOC", 0
 ;-----------------------------------------------------------------------
 ; ( -- )    compile a word in dictionary, from TOS  
 def_word ",", "COMMA", 0
-        .word DP, FETCH, STORE, CELL, DPADD, EXIT
+        .word HERE, STORE, CELL, DPADD, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )    find a word in dictionary, return CFA or FALSE (0x0)  
@@ -1265,52 +1297,50 @@ def_word "POSTPONE", "POSTPONE", IMMEDIATE
         .word TICK, COMMA, EXIT
 
 ;-----------------------------------------------------------------------
-;       eForth alike, ZZZZ MUST USE OFFSETS NOT ABSOLUTE
+;       eForth alike, all offsets 
 ;-----------------------------------------------------------------------
-; ( -- )     GO is AHEAD
-def_word "GO", "GO", IMMEDIATE
-        .word POSTPONE, BRANCH, 
-        .word HERE, ZERO, COMMA, EXIT
-
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "IF", "IF", IMMEDIATE
-        .word POSTPONE, ZBRANCH, 
+        .word POSTPONE, ZBRANCH
         .word HERE, ZERO, COMMA, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "THEN", "THEN", IMMEDIATE
-        .word HERE, SWAP, STORE, EXIT
+        .word HERE, OVER, MINUS, SWAP, STORE, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "ELSE", "ELSE", IMMEDIATE
-        .word POSTPONE, GO, SWAP, POSTPONE, THEN, EXIT
+        .word POSTPONE, BRANCH 
+        .word HERE, ZERO, COMMA, SWAP, THEN, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "BEGIN", "BEGIN", IMMEDIATE
-        .word HERE ;
+        .word HERE, EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "AGAIN", "AGAIN", IMMEDIATE
-        .word POSTPONE, BRANCH, COMMA, EXIT 
+        .word POSTPONE, BRANCH 
+        .word HERE, MINUS, COMMA, EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "UNTIL", "UNTIL", IMMEDIATE
-        .word POSTPONE, QBRANCH, COMMA, EXIT 
+        .word POSTPONE, QBRANCH, 
+        .word HERE, MINUS, COMMA, EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "WHILE", "WHILE", IMMEDIATE
-        .word POSTPONE, IF, SWAP, EXIT 
+        .word IF, TWOPLUS, EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
-def_word "REPEAT", "REPEATE", IMMEDIATE
+def_word "REPEAT", "REPEAT", IMMEDIATE
         .word POSTPONE, AGAIN,
         .word HERE, SWAP, STORE, EXIT 
 
@@ -1322,12 +1352,7 @@ def_word "FOR", "FOR", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "NEXT", "NEXT", IMMEDIATE
-        .word POSTPONE, DONEXT, COMMA, EXIT
-
-;-----------------------------------------------------------------------
-; ( -- )     TO is AFT
-def_word "TO", "TO", IMMEDIATE
-        .word DROP, POSTPONE, GO, POSTPONE, BEGIN, SWAP, EXIT
+        .word POSTPONE, DONEXT, UNTIL, EXIT
 
 ;-----------------------------------------------------------------------
 
@@ -1556,46 +1581,6 @@ nums_:
 ;-----------------------------------------------------------------------
 ;-----------------------------------------------------------------------
 ; to reviews
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 w4 -- (w1 w2 + w3 w4) ) 
-def_word "D+", "DADD", 0
-        clc
-        lda 0, x
-        adc 2, x
-        sta 2, x
-        lda 0 + sps, x
-        adc 2 + sps, x
-        sta 2 + sps, x
-        lda 1, x
-        adc 3, x
-        sta 3, x
-        lda 1 + sps, x
-        adc 3 + sps, x
-        sta 3 + sps, x
-drop2:
-        inx
-        inx
-        jmp next_
-
-;-----------------------------------------------------------------------
-; ( w1 w2 w3 w4 -- (w1 w2 - w3 w4) ) 
-def_word "D-", "DSUB", 0
-        sec
-        lda 0, x
-        sbc 2, x
-        sta 2, x
-        lda 0 + sps, x
-        sbc 2 + sps, x
-        sta 2 + sps, x
-        lda 1, x
-        sbc 3, x
-        sta 3, x
-        lda 1 + sps, x
-        sbc 3 + sps, x
-        sta 3 + sps, x
-        clc
-        bcc drop2
-
 ;-----------------------------------------------------------------------
 ; prepare for mult or divd
 opin:

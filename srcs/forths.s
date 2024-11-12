@@ -218,22 +218,13 @@ uDEV    = 30
 intflag:        .byte $0
 stsflag:        .byte $0
 
-psave:          .byte $0
-asave:          .byte $0
-
-xsave:          .byte $0
-ysave:          .byte $0
-
-ssave:          .byte $0
-fsave:          .byte $0
-
 ip:     .word $0
 up:     .word $0
 dp:     .word $0
 wk:     .word $0
 
 ; extra dummies, 
-ns:     .res 8
+np:     .res 8
 
 ; alias
 
@@ -402,18 +393,15 @@ def_word "OVER", "OVER", 0
 ;-----------------------------------------------------------------------
 ; ( -- w1 ) R( w1 -- w1 )  
 def_word "R@", "RAT", 0
-        dex
-        dex
-        pla
-        sta 1, x
-        pla 
-        sta 0, x
-; zzzz
+        stx one
+        tsx
         lda 0, x
         pha
         lda 1, x
-        pha
-        jmp next_
+        pha 
+        ldx one
+        clc
+        bcc push_
         
 ;-----------------------------------------------------------------------
 ; ( w1 -- ) R( -- w1) 
@@ -708,19 +696,16 @@ def_word "+!", "PLUSTO", 0
         clc
         lda (0, x)
         adc 2, x
-        pha
+        sta (0, x)
         inc 0, x
         bne @bcc
         inc 1, x
 @bcc:
         lda (0, x)
         adc 3, x
-        sta 3, x
-        pla
-        sta 2, x
-        inx
-        inx
-	jmp next_
+        sta (0, x)
+        clc
+        bcc drop2
 
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1+1 
@@ -798,6 +783,33 @@ cpt_:
         sta 1, x
         jmp next_
 
+;-----------------------------------------------------------------------
+; SETUP, copy data stack into work space
+setup:
+        asl a           ; count words
+        sta np - 1
+@loop:
+        lda 0, x
+        sta one, y
+        inx 
+        iny
+        cpy np - 1
+        bne @loop
+        ldy #0
+        rts
+
+;-----------------------------------------------------------------------
+; SETDN, copy from work space into data stack
+setup:
+        asl a      ; count words
+        tay 
+@loop:
+        lda one, y
+        dex
+        sta 0, x
+        dey
+        bne @loop
+        rts
 ;-----------------------------------------------------------------------
 ; ( w1 -- )  EXEC is done by nest in MTC
 def_word "EXECUTE", "EXEC", 0
@@ -967,7 +979,7 @@ look_:
         inc ip + 1
 
 ;-----------------------------------------------------------------------
-pick_:  ; unique in Minimal Thread Code
+pick_:  ; unique in Minimal Thread Code, 3 + 2 + 2 cc
         lda wk + 1
         cmp #>ends+1    ; init of heap compose dictionary
         bmi jump_
@@ -991,9 +1003,9 @@ link_: ; next reference
 jump_:  ; creed, do the jump
         
         jmp (wk)
-        ; alternate
-        jsr puthex
-        jmp next_
+        ; alternatve for list the primitives
+        ; jsr puthex
+        ; jmp next_
 
 ;-----------------------------------------------------------------------
 ; process a interrupt, could be a pool, void for now
@@ -1296,6 +1308,40 @@ def_word "'", "TICK", 0
 def_word "POSTPONE", "POSTPONE", IMMEDIATE
         .word TICK, COMMA, EXIT
 
+;----------------------------------------------------------------------
+; ( -- )  state mode compile
+def_word "[", "LBRAC", 0
+        .word ZERO, STATE, STORE, EXIT
+
+;----------------------------------------------------------------------
+; ( -- )  state mode interprete
+def_word "]", "RBRAC", 0
+        .word ONE, STATE, STORE, EXIT
+
+;----------------------------------------------------------------------
+; ( w1 -- )  word from buffer, ZZZZ
+def_word "WORD", "WORD", 0
+        .word CSKIP, CSCAN, EXIT
+
+;----------------------------------------------------------------------
+; ( w1 -- )  code a word in ASCII hexadecimal, ZZZZ
+def_word "CREATE", "CREATE", 0
+        .word BL, WORD, HERE, CMOVE, 
+
+;----------------------------------------------------------------------
+; ( w1 -- )  compile a word
+def_word ":", "COLON", 0
+	.word HERE, LAST, STORE
+	.word LATEST, FETCH, COMMA
+        .word CREATE, RBRAC, EXIT
+
+;----------------------------------------------------------------------
+; ( w1 -- )  ends a compile word
+def_word ";", "SEMIS", 0
+	.word DOCON, EXIT, COMMA
+        .word LAST, FETCH, LATEST, STORE
+        .word LBRAC, EXIT
+
 ;-----------------------------------------------------------------------
 ;       eForth alike, all offsets 
 ;-----------------------------------------------------------------------
@@ -1355,7 +1401,7 @@ def_word "NEXT", "NEXT", IMMEDIATE
         .word POSTPONE, DONEXT, UNTIL, EXIT
 
 ;-----------------------------------------------------------------------
-; ( -- )     
+; ( -- )  zzzz   
 def_word "DONEXT", "DONEXT", IMMEDIATE
         .word EXIT
 

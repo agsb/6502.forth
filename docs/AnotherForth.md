@@ -53,6 +53,7 @@
 
     1. No DO LOOP, only FOR NEXT that counts down and exits at 0.
     2. no internal test for $XXFF, grep for it at end of compilation 
+    3. tips from "EOR #$FF" https://ia804606.us.archive.org/26/items/eor6502/eorBookV1.0.1_ebookRelease.pdf
 
  ## Words
 

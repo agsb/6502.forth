@@ -213,25 +213,25 @@ uDEV    = 30
 ;-----------------------------------------------------------------------
 .segment "ZERO"
 
-* = $40
+* = $40 
 
 intflag:        .byte $0
 stsflag:        .byte $0
 
-ip:     .word $0
-up:     .word $0
-dp:     .word $0
-wk:     .word $0
+ip:     .word $0        ; instruction pointer
+up:     .word $0        ; user pointer
+dp:     .word $0        ; dictionary pointer, mixed header + code
+wk:     .word $0        ; wise left wk just above np
 
 ; extra dummies, 
 np:     .res 8
 
 ; alias
 
-one = ns + 0
-two = ns + 2
-six = ns + 4
-ten = ns + 6
+one = np + 0
+two = np + 2
+six = np + 4
+ten = np + 6
 
 ;-----------------------------------------------------------------------
 ; bottom of data stack
@@ -621,6 +621,7 @@ def_word "!", "STORE", 0
         inc 1, x
 @bne:
         lda 3, x
+stow2:
         sta (0, x)
 drop2:
         inx
@@ -628,6 +629,23 @@ drop2:
         inx
         inx
         jmp next_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- )  
+def_word "+!", "PLUSTO", 0
+        clc
+        lda (0, x)
+        adc 2, x
+        sta (0, x)
+        inc 0, x
+        bne @bcc
+        inc 1, x
+@bcc:
+        lda (0, x)
+        adc 3, x
+        sta (0, x)
+        clc
+        bcc drop2
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 w4 -- (w1 w2 + w3 w4) ) 
@@ -689,23 +707,6 @@ def_word "@", "FETCH", 0
         pla
         sta 0, x
         jmp next_
-
-;-----------------------------------------------------------------------
-; ( w1 w2 -- )  
-def_word "+!", "PLUSTO", 0
-        clc
-        lda (0, x)
-        adc 2, x
-        sta (0, x)
-        inc 0, x
-        bne @bcc
-        inc 1, x
-@bcc:
-        lda (0, x)
-        adc 3, x
-        sta (0, x)
-        clc
-        bcc drop2
 
 ;-----------------------------------------------------------------------
 ; ( w1  -- w2 ) w2 = w1+1 
@@ -784,10 +785,10 @@ cpt_:
         jmp next_
 
 ;-----------------------------------------------------------------------
-; SETUP, copy data stack into work space
-setup:
-        asl a           ; count words
-        sta np - 1
+;       copy data stack into work space, top 4 cells
+ds2ws_:
+        asl a           ; count bytes
+        sta np - 1      ; wk counts 
 @loop:
         lda 0, x
         sta one, y
@@ -799,9 +800,9 @@ setup:
         rts
 
 ;-----------------------------------------------------------------------
-; SETDN, copy from work space into data stack
-setup:
-        asl a      ; count words
+;       copy from work space into data stack, top 4 cells
+ws2ds_:
+        asl a      ; count bytes
         tay 
 @loop:
         lda one, y
@@ -910,6 +911,86 @@ bran_:
         sta ip + 1
         jmp next_
 
+;-----------------------------------------------------------------------
+; ( a1 a2 u  -- )    move bytes  
+def_word "MOVE", "MOVE", 0
+        ; words to bytes
+        asl 0, x 
+        rol 1, x
+        clc
+        bcc cmove_
+
+;-----------------------------------------------------------------------
+; ( a c  -- )    move bytes  
+def_word "CSKIP", "CSKIP", 0
+        lda #2
+        jsr ds2ws_
+        dex
+        dex
+        sty 1, x
+@loop:
+        lda (two), y
+        cmp one + 0
+        bne @ends
+        iny
+        bne @loop
+@ends:
+        sty 0, x
+        jmp next_
+
+;-----------------------------------------------------------------------
+; ( a c  -- )    move bytes  
+def_word "CSCAN", "CSCAN", 0
+        lda #2
+        jsr ds2ws_
+        dex
+        dex
+        sty 1, x
+@loop:
+        lda (two), y
+        cmp one + 0
+        beq @ends
+        iny
+        bne @loop
+@ends:
+        sty 0, x
+        jmp next_
+
+;-----------------------------------------------------------------------
+; ( a1 a2 u  -- )    move bytes  
+def_word "CMOVE", "CMOVE", 0
+cmove_:
+        lda #3
+        jsr ds2ws_
+@loop:
+        ; copy
+        lda (six), y
+        sta (two), y
+        ; decrement counter
+        lda one + 0
+        bne @bne0
+        dec one + 1
+@bne0:
+        dec one + 0
+        ; verify terminate
+        lda one + 0
+        ora one + 1
+        beq @ends
+        ; increment origin
+        inc six + 0
+        bne @bne1
+        inc six + 1
+@bne1:
+        ; increment destiny
+        inc two + 0
+        bne @bne2
+        inc two + 1
+@bne2:
+        ; and loop
+        bne @loop
+@ends:
+        jmp next_
+        
 ;----------------------------------------------------------------------
 ; ( w1 -- )  code a word in ASCII hexadecimal
 def_word ".", "DOT", 0
@@ -959,7 +1040,7 @@ unnest_:  ; pull from return stack, aka semis ;S
 next_:  
         ; do interrupts
         bit intflag
-        bvs intr_
+        bvs hang_
 
 ;-----------------------------------------------------------------------
 look_:
@@ -1009,7 +1090,7 @@ jump_:  ; creed, do the jump
 
 ;-----------------------------------------------------------------------
 ; process a interrupt, could be a pool, void for now
-intr_:
+hang_:
         lda #$C0
         sta intflag
         jmp look_
@@ -1031,10 +1112,10 @@ lsbs_:
 ;-----------------------------------------------------------------------
 ; ( -- w1 )  index of RP0
 def_word "RP@", "RPAT", 0
-        stx xsave
+        stx np + 0
         tsx
         txa
-        ldx xsave
+        ldx np + 0
         bne lsbs_
 
 ;-----------------------------------------------------------------------
@@ -1114,17 +1195,24 @@ def_word "RP!", "TORP", 0
 ;       two bytes variables
 ;-----------------------------------------------------------------------
 ; ( -- w )  reference of forth internal dictionary heap
-def_word "DP", "DP", 0
-        ldy #uDP
+def_word "UP", "UP", 0
+        ldy #0
 upsv_:
         dex
         dex
         lda (up), y
-        sta 1, x
-        dey
-        lda (up), y
         sta 0, x
+        iny
+        lda (up), y
+        sta 1, x
         jmp next_
+
+;-----------------------------------------------------------------------
+; ( -- w )  reference of forth internal dictionary heap
+def_word "DP", "DP", 0
+        ldy #uDP
+        clc
+        bcc upsv_
 
 ;-----------------------------------------------------------------------
 ; ( -- w )  reference of forth internal word buffer 
@@ -1143,9 +1231,23 @@ def_word "TOIN", "TOIN", 0
         bcc upsv_
 
 ;-----------------------------------------------------------------------
-; ( -- w )  reference of forth internal doctionary last word 
+; ( -- w )  reference of forth internal latest 
 def_word "LATEST", "LATEST", 0
         ldy #uLATEST
+        clc
+        bcc upsv_
+
+;-----------------------------------------------------------------------
+; ( -- w )  reference of forth internal last  
+def_word "LAST", "LAST", 0
+        ldy #uLAST
+        clc
+        bcc upsv_
+
+;-----------------------------------------------------------------------
+; ( -- w )  reference of forth internal latest 
+def_word "STATE", "STATE", 0
+        ldy #uSTATE
         clc
         bcc upsv_
 
@@ -1195,84 +1297,100 @@ ends:
 ; ( -- )    find a word in dictionary, return CFA or FALSE (0x0)  
 ; zzzz
 def_word "(FIND)'", "FINDF", 0
-        .word DROP, EXIT
+        .word DROP
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 < w2) ) 
 def_word "<", "LTH", 0
-        .word INVERT, PLUS, LTZ, EXIT
+        .word INVERT, PLUS, LTZ
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w1 > w2) ) 
 def_word ">", "GTH", 0
-        .word SWAP, LTH, EXIT 
+        .word SWAP, LTH
+	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 -- w2 w3 w1 )     
 def_word "ROT2", "ROTF2", 0
-        .word TOR, SWAP, RTO, SWAP, EXIT
+        .word TOR, SWAP, RTO, SWAP
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 -- w3 w1 w2 )     
 def_word "-ROT2", "ROTB2", 0
-        .word SWAP, TOR, SWAP, RTO, EXIT
+        .word SWAP, TOR, SWAP, RTO
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- (w2) (w3) )     
 def_word "2@", "TWOAT", 0
-        .word DUP, CELL, PLUS, FETCH, SWAP, FETCH, EXIT
+        .word DUP, CELL, PLUS, FETCH, SWAP, FETCH
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 --  )     
 def_word "2!", "TWOTO", 0
-        .word SWAP, OVER, STORE, CELL, PLUS, STORE, EXIT
+        .word SWAP, OVER, STORE, CELL, PLUS, STORE
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 --  )     
 def_word "2R>", "TWORTO", 0
-        .word RTO, RTO, SWAP, EXIT
+        .word RTO, RTO, SWAP
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- w1 w2 )     
 def_word "2>R", "TWOTOR", 0
-        .word SWAP, TOR, TOR, EXIT
+        .word SWAP, TOR, TOR
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- w1 w2 )     
 def_word "2R@", "TWORPAT", 0
-        .word RTO, RTO, TWODUP, TWORTO, EXIT
+        .word RTO, RTO, TWODUP, TWORTO
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 --  )     
 def_word "2DROP", "TWODROP", 0
-        .word DROP, DROP, EXIT
+        .word DROP, DROP
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2  -- w1 w2 w1 w2  )     
 def_word "2DUP", "TWODUP", 0
-        .word OVER, OVER, EXIT
+        .word OVER, OVER
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w1 w2 w1 w2   )     
 def_word "2OVER", "TWOOVER", 0
-        .word TWOTOR, TWODUP, TWORTO, TWOSWAP, EXIT
+        .word TWOTOR, TWODUP, TWORTO, TWOSWAP
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 w4 -- w3 w4 w1 w2 )     
 def_word "2SWAP", "TWOSWAP", 0
-        .word ROT, TOR, ROT, RTO, EXIT
+        .word ROT, TOR, ROT, RTO
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 --  w1 + CELL )     
 def_word "CELL+", "CELLPLUS", 0
         ; cells is two 
-        .word TWOPLUS, EXIT
+        .word TWOPLUS
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w2 + 2 * w1 )     
 ; cells is two 
 def_word "CELLS", "CELLS", 0
-        .word ASFL, EXIT
+        .word ASFL
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; borrow from eForth
@@ -1281,141 +1399,166 @@ def_word "CELLS", "CELLS", 0
 ;-----------------------------------------------------------------------
 ; ( -- )      
 def_word "HERE", "HERE", 0
-        .word DP, FETCH, EXIT 
+        .word DP, FETCH
+	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )    compile a word in dictionary, from TOS  
 def_word "DP+", "DPADD", 0
-        .word HERE, PLUS, DP, STORE, EXIT 
+        .word HERE, PLUS, DP, STORE
+	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )      
 def_word "ALLOC", "ALLOC", 0
-        .word CELLS, DPADD, EXIT
+        .word CELLS, DPADD
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )    compile a word in dictionary, from TOS  
 def_word ",", "COMMA", 0
-        .word HERE, STORE, CELL, DPADD, EXIT
+        .word HERE, STORE, CELL, DPADD
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )    find a word in dictionary, return CFA or FALSE (0x0)  
 def_word "'", "TICK", 0
-        .word FINDF, EXIT
+        .word FINDF
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )    find a word in dictionary, return CFA or FALSE (0x0)  
 def_word "POSTPONE", "POSTPONE", IMMEDIATE
-        .word TICK, COMMA, EXIT
+        .word TICK, COMMA
+	.word EXIT
 
 ;----------------------------------------------------------------------
 ; ( -- )  state mode compile
 def_word "[", "LBRAC", 0
-        .word ZERO, STATE, STORE, EXIT
+        .word ZERO, STATE, STORE
+	.word EXIT
 
 ;----------------------------------------------------------------------
 ; ( -- )  state mode interprete
 def_word "]", "RBRAC", 0
-        .word ONE, STATE, STORE, EXIT
+        .word ONE, STATE, STORE
+	.word EXIT
 
 ;----------------------------------------------------------------------
 ; ( w1 -- )  word from buffer, ZZZZ
 def_word "WORD", "WORD", 0
-        .word CSKIP, CSCAN, EXIT
+        .word CSKIP, CSCAN
+	.word EXIT
 
 ;----------------------------------------------------------------------
 ; ( w1 -- )  code a word in ASCII hexadecimal, ZZZZ
 def_word "CREATE", "CREATE", 0
-        .word BL, WORD, HERE, CMOVE, 
-
+        .word BL, WORD, HERE, CMOVE 
+        .word EXIT
 ;----------------------------------------------------------------------
 ; ( w1 -- )  compile a word
 def_word ":", "COLON", 0
 	.word HERE, LAST, STORE
 	.word LATEST, FETCH, COMMA
-        .word CREATE, RBRAC, EXIT
+        .word CREATE, RBRAC
+        .word EXIT
 
 ;----------------------------------------------------------------------
 ; ( w1 -- )  ends a compile word
 def_word ";", "SEMIS", 0
-	.word DOCON, EXIT, COMMA
-        .word LAST, FETCH, LATEST, STORE
-        .word LBRAC, EXIT
+	.word DOCON
+	.word EXIT, COMMA
+        .word LAST, FETCH, LATEST, STORE, LBRAC
+        .word EXIT
 
 ;-----------------------------------------------------------------------
 ;       eForth alike, all offsets 
 ;-----------------------------------------------------------------------
+
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "IF", "IF", IMMEDIATE
         .word POSTPONE, QBRANCH
-        .word HERE, ZERO, COMMA, EXIT
+        .word HERE, ZERO, COMMA
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "THEN", "THEN", IMMEDIATE
-        .word HERE, OVER, MINUS, SWAP, STORE, EXIT
+        .word HERE, OVER, MINUS, SWAP, STORE
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "ELSE", "ELSE", IMMEDIATE
-        .word POSTPONE, BRANCH 
-        .word HERE, ZERO, COMMA, SWAP, THEN, EXIT
+        .word POSTPONE, BRANCH
+        .word HERE, ZERO, COMMA
+        .word SWAP, THEN
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "BEGIN", "BEGIN", IMMEDIATE
-        .word HERE, EXIT
+        .word HERE
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "AGAIN", "AGAIN", IMMEDIATE
-        .word POSTPONE, BRANCH 
-        .word HERE, MINUS, COMMA, EXIT 
+        .word POSTPONE, BRANCH
+        .word HERE, MINUS, COMMA
+	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "UNTIL", "UNTIL", IMMEDIATE
         .word POSTPONE, QBRANCH 
-        .word HERE, MINUS, COMMA, EXIT 
+        .word HERE, MINUS, COMMA
+	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "WHILE", "WHILE", IMMEDIATE
-        .word IF, TWOPLUS, EXIT 
+        .word IF, TWOPLUS
+	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "REPEAT", "REPEAT", IMMEDIATE
         .word POSTPONE, AGAIN
-        .word HERE, SWAP, STORE, EXIT 
+        .word HERE, SWAP, STORE
+	.word EXIT 
 
 ;-----------------------------------------------------------------------
-; ( -- )     
+; ( -- ) counts down 
 def_word "FOR", "FOR", IMMEDIATE
-        .word POSTPONE, TOR, HERE, EXIT
+        .word POSTPONE, TOR, HERE
+	.word EXIT
 
 ;-----------------------------------------------------------------------
-; ( -- )     
+; ( -- ) until zero     
 def_word "NEXT", "NEXT", IMMEDIATE
-        .word POSTPONE, DONEXT, UNTIL, EXIT
-
-;-----------------------------------------------------------------------
-; ( -- )  zzzz   
-def_word "DONEXT", "DONEXT", IMMEDIATE
+        .word POSTPONE, DONEXT, UNTIL
         .word EXIT
 
 ;-----------------------------------------------------------------------
+; ( -- ) decrements the counter and verify
+def_word "DONEXT", "DONEXT", 0
+        .word RTO, ONEMINUS, DUP
+        .word IF, TOR, FALSE
+        .word ELSE, INVERT
+        .word THEN
+	.word EXIT
 
-
-
+;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
 ; BEWARE, MUST BE AT END OF PRE-POSTPONED-COMPOSED ! 
 ;-----------------------------------------------------------------------
 ; ( w1 -- w2 w3 )     
 def_word "NULL", "NULL", 0
-        .word FALSE, EXIT
+        .word FALSE
+	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; END OF CODE

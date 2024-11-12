@@ -40,4 +40,9 @@ clean:
 	$(RM) $(MY) $(MY).out $(MY).err $(MY).map $(MY).lst \
 			    $(MY).lbl $(MY).lbs $(MY).hex
 
+dic:
+	grep "^def_word" $(MY).s |\
+	sed -e 's/[^"]*"//; s/".*//;' |\
+	wc | awk  ' { a = $$2 * 2 + $$3; print a } '
+
 

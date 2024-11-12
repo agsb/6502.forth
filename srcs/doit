@@ -3,3 +3,5 @@ MY=$1 make clean
 
 MY=$1 make
 
+MY=$1 make dic
+

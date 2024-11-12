@@ -40,27 +40,30 @@
 
  ## Forth
 
-    1. reserves $00 to $3F of page zero for extras;
-    2. pleny of full 64k (sic) RAM, use interleaved dictionary;
-    3. uses Minimal Thread Code;
-    4. mixed eForth and Fig-Forth references;
-    5. 
+    BIOS reserves $000-$03F, $0100-$013F, $0300-03FF, $0400-$04FF
+
+    pleny of full 64k (sic) RAM, use interleaved dictionary;
+    
+    uses Minimal Thread Code;
+    
+    mixed eForth and Fig-Forth references;
+     
 
  ## Uniques
 
-    1. No DO LOOP, only FOR NEXT that exits at 0
-    2. 
+    1. No DO LOOP, only FOR NEXT that counts down and exits at 0.
+    2. no internal test for $XXFF, grep for it at end of compilation 
 
  ## Words
 
-    unnest  next  pick  nest  pick  jump 
-    push  putw  select  monitor  
+    unnest  next  look  pick  nest  pick  jump  hang 
+    push  putw  select  
     key  emit  ?key  ?emit
 
     C@  C!  @  !  R@  R>  >R  SP@  RP@  SP!  RP! 
-    DROP  DUP  SWAP  OVER 0= 0< U<  +  U+
-    EXIT  EXECUTE  FOR  NEXT . ? COLD WARM 
-    BOOT TURN-ON BYE
+    DROP  DUP  SWAP  OVER  0=  0<  U<  +  U+  -  U-
+    BRANCH  QBRANCH  EXIT  EXEC  FOR  NEXT  
+    .  ?  COLD  WARM  BOOT  TURN  REST  BYE
 
     1+  1-  2+  2-  0  1  2  3  CELL  CELLS  CR  BL
     ROT  -ROT  DIP  2/  2*  NEGATE  INVERT  +  +!  
@@ -68,19 +71,25 @@
     create  does  find  comma  
     number  parse  word  accept 
 
-    BRANCH  QBRANCH  DP  LATEST  HERE  
-    CREATE : ; , ' ;S
+    DP  LATEST  HERE  CMOVE  MOVE CSCAN CSKIP 
+    CREATE  :  ;  ,  '  ;S
     IF  ELSE  THEN  BEGIN  AGAIN  UNTIL  WHILE  REPEAT
     CASE OF ENDOF ENDCASE
     QUIT EVAL
     
+    Notes:
+
+        next includes an interrupt handler to hang ;)
+
+        EXEC does nest, EXIT does unnest
+
  ## Rationale
 
     the most used words in Forth executions are:
 
         inner  CALL  EXIT  LIT  
         @  !  0=  0<  +
-        QBRANCH  BRANCH  DROP  PUTW
+        QBRANCH  BRANCH  DROP
 
 
 

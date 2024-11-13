@@ -73,6 +73,7 @@
 ;	(still) non-optimized code,
 ;	
 ;	FALSE is $0000 (0) TRUE is $FFFF (-1)
+;
 ;	SP0 and RP0 uses $FF as botton
 ;	
 ;	stacks grows backwards, as -2 -1 0 1 2 3 ...
@@ -90,8 +91,9 @@
 ;               name:   .byte * lenght
 ;       code:   
 ;               all bytes following name
+;               are references or native code
 ;
-;       why another Forth? To learn how to.
+;       Why another Forth? To learn how to.
 ;
 ;       for use in the 6502.toy SBC
 ;
@@ -241,11 +243,11 @@ six = np + 4
 ten = np + 6
 
 ;-----------------------------------------------------------------------
-; bottom of data stack
+; bottom of data stack, at least 52 bytes
 S0 = $00FF
 
 ;-----------------------------------------------------------------------
-; bottom of return stack
+; bottom of return stack, at least 52 bytes
 R0 = $01FF
 
 ;-----------------------------------------------------------------------
@@ -339,7 +341,7 @@ byes:
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
-; ( w1 -- (w1 << 1) ) roll left, C -> b0, b7 -> C
+; ( w1 -- (w1 << 1) ) roll left, C=0, C -> b0, b7 -> C
 def_word "RSFL", "RSFL", 0
         clc
         rol 0, x
@@ -347,7 +349,7 @@ def_word "RSFL", "RSFL", 0
         jmp next_
 
 ;-----------------------------------------------------------------------
-; ( w1 -- (w1 >> 1) ) roll right, C -> b7, b0 -> C
+; ( w1 -- (w1 >> 1) ) roll right, C=0, C -> b7, b0 -> C
 def_word "RSFR", "RSFR", 0
         clc
         ror 1, x
@@ -357,31 +359,31 @@ def_word "RSFR", "RSFR", 0
 ;-----------------------------------------------------------------------
 ; ( w1 -- (w1 << 1) ) arithmetic left, 0 -> b0, b7 -> C
 def_word "2*", "ASFL", 0
-        asl 0, x
+        ; rolls
+        clc
+        rol 0, x
         rol 1, x
+        bcc @ends
+sign_:
+        lda #$80
+        ora 1, x
+        sta 1, x
+@ends:
         jmp next_
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- (w1 << 1) ) arithmetic right, C -> b7, b0 -> C
 def_word "2/", "ASFR", 0
-        asl 1, x
+        ; get sign bit
+        lda 1, x
+        pha
+        ; does a roll
+        clc
         ror 1, x
         ror 0, x
-        jmp next_
-
-;-----------------------------------------------------------------------
-; ( w1 -- (w1 >> 1) ) logical right, 0 -> b7, b0 -> C 
-def_word "LSFR", "LSFR", 0
-        lsr 1, x
-        ror 0, x
-        jmp next_
-
-;-----------------------------------------------------------------------
-; ( w1 -- (w1 >> 1) ) logical left, 0 -> b0, b7 -> C 
-def_word "LSFL", "LSFL", 0
-        clc
-        rol 1, x
-        rol 0, x
+        ; set sign bit
+        pla
+        bmi sign_
         jmp next_
 
 ;-----------------------------------------------------------------------
@@ -861,6 +863,14 @@ def_word "(DODOE)", "DODOES", 0
         jmp next_
 
 ;-----------------------------------------------------------------------
+;-----------------------------------------------------------------------
+; ( -- )  
+def_word "0BRANCH", "QBRANCH", 0
+        inx
+        inx
+        lda 255, x
+        ora 254, x
+        beq bran_
 bump_:
         ; next reference
         lda #$02
@@ -896,16 +906,6 @@ def_word "(DOCON)", "DOCON", 0
         sta 0, x
         jmp bump_
         
-;-----------------------------------------------------------------------
-; ( -- )  
-def_word "0BRANCH", "QBRANCH", 0
-        inx
-        inx
-        lda 255, x
-        ora 254, x
-        beq bran_
-        bne bump_
-
 ;-----------------------------------------------------------------------
 ; ( -- )    branch by offset, 16-bit signed  
 def_word "BRANCH", "BRANCH", 0
@@ -1054,6 +1054,70 @@ puthex:
         adc #$06
 @ends:
         jmp putchar
+----------------------------------------------------------------------
+; code a ASCII $FFFF hexadecimal in a byte
+;  
+number:
+
+	ldy #0
+
+	jsr @very
+	asl
+	asl
+	asl
+	asl
+	sta one + 1
+
+	iny 
+	jsr @very
+	ora one + 1
+	sta one + 1
+	
+	iny 
+	jsr @very
+	asl
+	asl
+	asl
+	asl
+	sta one + 0
+
+	iny 
+	jsr @very
+	ora one + 0
+	sta one + 0
+
+	clc ; clean
+	rts
+
+@very:
+	lda (tout), y
+	cpy #0
+	bne @digt
+	; negative sign ?
+	cmp #'-'
+	bne @pos
+@pos ZZZZ		
+	; positive sign ?
+	cmp #'+'
+
+	iny
+	bne @very
+
+@digt:
+	sec
+	sbc #$30	; test < ' '
+	bmi @erro
+	cmp #10		; test < 10
+	bcc @ends
+	sbc #$07	; adjust for letters
+	; any valid digit, A-Z, do not care 
+	cmp base + 0	; zzzz page zero ?
+	bmi @ends
+@erro:
+	pla
+	pla
+@ends:
+	rts
 
 ;-----------------------------------------------------------------------
 ;

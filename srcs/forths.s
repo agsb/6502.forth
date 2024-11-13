@@ -624,7 +624,7 @@ true2:
 ; (( w1 -- w1 == 0 )) 
 def_word "0=", "ZEQ", 0
         lda 0, x
-        ora 1, x
+        eor 1, x
         bne false2
         beq true2
 
@@ -655,10 +655,10 @@ def_word "U<", "ULT", 0
 def_word "=", "EQ", 0
         clc
         lda 0, x
-        cmp 2, x
+        eor 2, x
         bne @bne
         lda 1, x
-        cmp 3, x
+        eor 3, x
         bne @bne
         sec
 @bne:

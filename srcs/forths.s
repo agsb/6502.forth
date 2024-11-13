@@ -653,15 +653,19 @@ def_word "U<", "ULT", 0
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- w1 == w2 )) 
 def_word "=", "EQ", 0
-        inx 
-        inx
+        clc
         lda 0, x
-        ora 254, x
-        bne false2
+        cmp 2, x
+        bne @bne
         lda 1, x
-        ora 255, x
-        bne false2
-        beq true2
+        cmp 3, x
+        bne @bne
+        sec
+@bne:
+        inx
+        inx
+        bcc false2
+        bcs true2
 
 ;-----------------------------------------------------------------------
 ; (( a c -- )) *a = 0x00FF AND c

@@ -112,16 +112,16 @@
 ; It represents the order of push into the stack, 
 ; not the order from top of stack.
 
-; In standards 79, 83, 94, the cells in (( after -- before )), 
+; In standards 79, 83, 94, the cells in ( after -- before ), 
 ; should be arranged on the left as bottom and on the right as top.
 ;
-; For example, when representing (( w1 w2 w3 -- )), the order 
+; For example, when representing ( w1 w2 w3 -- ), the order 
 ; is be w3 at the top and w1 at the bottom.
 ;
-; The cells indices for (( w1 w2 w3 -- )), are of w1 is 3, of w2 is 2,
-; but for (( w1 w2 -- )), are of w1 is 2 and of w2 is 1.
+; The cells indices for ( w1 w2 w3 -- ), are of w1 is 3, of w2 is 2,
+; but for ( w1 w2 -- ), are of w1 is 2 and of w2 is 1.
 ;
-; This is very confusing to me.
+; This is very confusing to me, when using the stack in words.
 ;
 ; I prefer to use w1 always as the top, and the following  
 ; indicating the position relative to the top of the stack.
@@ -130,7 +130,7 @@
 ; the indices are always in the same order.
 ;
 ; To differentiate, I'm using double parentheses to indicate 
-; that w1 is always at top.
+; that w1 is the last pushed into stack and always at top.
 ;
 ;-----------------------------------------------------------------------
 

@@ -29,111 +29,9 @@
 ; POSSIBILITY OF SUCH DAMAGE.
 ;-----------------------------------------------------------------------
  
-;/*
-;note
 ;
-;       09/11/2024        
-;       review bios at 6502.toy, 
-;               define $040, $140, $400, $1000 limits
+; please vide notes.md
 ;
-;       06/11/2024
-;       house clean
-;       rewrite for not splited MSB LSB stacks. 
-;       wise keep Y=0 in next, 
-;       keep X as dedicated data stack index.
-;       keep return stack at hard stack
-;        
-;       05/11/2024
-;       rewrite for use stacks at pages zero and one
-;               due overhead at @ and !
-;
-;       03/11/2024
-;       using absolute splited stacks. 
-;       interrupt service from R65F11, 
-;       also http://wilsonminesco.com/6502primer/IRQconx.html
-;           
-;todo
-;       still no vocabularies.
-;
-;
-;*/
-
-;-----------------------------------------------------------------------
-;
-;	A((nother)) Forth for 6502 with
-;	data stack in page zero,
-;	return stack in page one
-;	and using minimal thread code
-;	eForth and Fig-Forth, alike.
-;	
-;	uses X as data stack index, 
-;       Y as keeped zero 
-;	
-;	((still)) non-rellocable code, 
-;	((still)) non-optimized code,
-;	
-;	FALSE is $0000 (0)) TRUE is $FFFF ((-1))
-;
-;	SP0 and RP0 uses $FF as botton
-;	
-;	stacks grows backwards, as -2 -1 0 1 2 3 ...
-;	0 is TOS, 1 is NOS, 2 is SOS, 3 is FORGET.
-;	
-;	Mixed header and code dictionary, no need CFA
-;
-;       the next cell after c-name is always a CFA
-;
-;	No need of DOCOL at CFA, vide MTC
-;	
-;       header:
-;               link:   .word
-;               byte:   .size_flag
-;               name:   .byte * lenght
-;       code:   
-;               all bytes following name
-;               are references or native code
-;
-;       Why another Forth? To learn how to.
-;
-;       for use in the 6502.toy SBC
-;
-;-----------------------------------------------------------------------
-;
-; ABOUT STACK NOTATION
-;
-; __The top of the stack is to the right.__, 
-;       Forth 2012, Standart.
-;
-; __ OVER  ( n1 n2 — n1 n2 n1 )  Copies second item to top__, 
-;       "Starting Forth", Leo Brodie
-;
-; I have a cognitive problem about stack notation.
-;
-; It represents the order of push into the stack, 
-; not the order from top of stack.
-
-; In standards 79, 83, 94, the cells in ( after -- before ), 
-; should be arranged on the left as bottom and on the right as top.
-;
-; For example, when representing ( w1 w2 w3 -- ), the order 
-; is be w3 at the top and w1 at the bottom.
-;
-; The cells indices for ( w1 w2 w3 -- ), are of w1 is 3, of w2 is 2,
-; but for ( w1 w2 -- ), are of w1 is 2 and of w2 is 1.
-;
-; This is very confusing to me, when using the stack in words.
-;
-; I prefer to use w1 always at top, and the following indicating 
-; the position relative to the top of the stack, as the depth level.
-;
-; So w1 will always be 1, w2 will always be 2, and so on,
-; the indices are always in the same order.
-;
-; To differentiate, I'm using double parentheses to indicate 
-; that w1 is ever the last pushed into stack and always at top.
-;
-;-----------------------------------------------------------------------
-
 ;-----------------------------------------------------------------------
 ;  init of ca65 assembler 
 ;----------------------------------------------------------------------
@@ -225,28 +123,6 @@ IMMEDIATE = FLAG_IMM
 ; maximum length of words
 LENGTH = 15
 
-; alias for user area
-
-uVOID   = 0
-uSO     = 2
-uRO     = 4
-uDP     = 6
-uHP     = 8
-uLAST   = 10
-uLATEST = 12
-uSTATE  = 14
-uBASE   = 16
-uTIB    = 18
-uTOIN   = 20
-
-uPAGE   = 22
-uSCR    = 24
-uBLK    = 26
-uDEV    = 28
-
-uTAIL   = 30
-uHEAP   = 32
-
 ;-----------------------------------------------------------------------
 ; For use of 6502.toy, reserved for bios
 ;
@@ -286,6 +162,13 @@ S0 = $00FF
 R0 = $01FF
 
 ;-----------------------------------------------------------------------
+; terminal input buffer, at least 82 bytes, 
+; must start with blank space 
+; must ends with null, end of line 
+;
+TIB0 = $0200
+
+;-----------------------------------------------------------------------
 ;
 ; leave space for page zero, hard stack,
 ; and buffers, locals, stacks, etc
@@ -296,24 +179,69 @@ R0 = $01FF
 
 boot:
         ; prepare hardware 
-        nop
+        nop     ; align even
         jmp main
 
-user:   .word $0    ; start of user area
-stat:   .word $0    ; state of Forth, 0 is interpret, 1 is compiling
-base:   .word $0    ; number radix for input and output
-last:   .word $0    ; reference to last word, link field
+;-----------------------------------------------------------------------
+; forth variables start at U0
+U0 = *
 
-here:   .word $0    ; here to compiling
-back:   .word $0    ; keep the here while compiling
-tibz:   .word $0    ; TIB
-toin:   .word $0    ; TIB reference to next word
+; alias for user area
 
-task:   .word $0
-page:   .word $0
-buff:   .word $0
-head:   .word $0
+uVOID   = 0
+uSO     = 2
+uRO     = 4
+uDP     = 6
+uHP     = 8
+uSTATE  = 10
+uBASE   = 12
+uLATEST = 14
+uLAST   = 16
+uCURRENT = 18
+uCONTEXT = 20
+uSOURCE = 24
+
+uTIBZ   = 26
+uTIBN   = 28
+uTOIN   = 30
+
+uTASK   = 32
+uTAIL   = 34
+uHEAD   = 36
+uPAGE   = 38
+uHEAP   = 40
+uDEV    = 42
+uCLD    = 44
+uBLK    = 46
+uSCR    = 48
+
+
+void:           .word $0        ; reserved
+task:           .word $0
+source:         .word $0        ; CFA of inputs, 0 is terminal
+
+state:          .word $0        ; state of Forth, 1 is compiling
+base:           .word $0        ; number radix for input and output
+latest:         .word $0        ; reference to last link, is LASTEST 
+last:           .word $0        ; reference to last here, is not HERE
+current:        .word $0        ; currente vocabulary
+context:        .word $0        ; context vocabularies chain
+
+tibz:   .word $0        ; TIB, terminal input buffer
+tibn:   .word $0        ; size of TIB
+toin:   .word $0        ; TIB reference to next word
+
 tail:   .word $0
+head:   .word $0
+page:   .word $0
+heap:   .word $0
+
+dev:    .word $0        ; devices (type)
+und:    .word $0        ; units
+cld:    .word $0        ; cilinders
+blk:    .word $0        ; blocks
+scr:    .word $0        ; screens
+
 
 ;----------------------------------------------------------------------
 
@@ -373,6 +301,7 @@ byes:
 ; X is the data stack index
 ; Y is zero almost time, by next_
 ; stacks grows backwards, push decreases, pull increases
+; notation: left is the TOP
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
@@ -429,8 +358,28 @@ def_word "DROP", "DROP", 0
         jmp next_
 
 ;-----------------------------------------------------------------------
+; (( w1 w2 -- w1 )) 
+def_word "NIP", "NIP", 0
+        lda 0, x
+        sta 2, x
+        lda 1, x
+        sta 3, x
+        inx
+        inx
+        jmp next_
+
+;-----------------------------------------------------------------------
+; (( w1 -- w1 w1 )) 
+def_word "?DUP", "QDUP", 0
+        lda 0, x
+        eor 1, x
+        bne dups_
+        jmp next_
+
+;-----------------------------------------------------------------------
 ; (( w1 -- w1 w1 )) 
 def_word "DUP", "DUP", 0
+dups_:
         dex
         dex
         lda 2, x
@@ -440,7 +389,7 @@ def_word "DUP", "DUP", 0
         jmp next_
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 -- w2 w1 w2)) 
+; (( w1 w2 -- w2 w1 w2)) copy the second element to top.
 def_word "OVER", "OVER", 0
         dex
         dex
@@ -463,6 +412,13 @@ def_word "R@", "RAT", 0
         clc
         bcc push_
         
+;-----------------------------------------------------------------------
+; (( -- )) R(( w1 -- )) 
+def_word "RDROP", "RDROP", 0
+        pla
+        pla
+        jmp next_
+
 ;-----------------------------------------------------------------------
 ; (( w1 -- )) R(( -- w1)) 
 def_word ">R", "TOR", 0
@@ -755,7 +711,7 @@ def_word "D-", "DMINUS", 0
         inx
         dey
         bne @loop
-        jmp mext_
+        jmp next_
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 w3 w4 -- (w1 w2 < w3 w4) )) ZZZZ 
@@ -854,7 +810,7 @@ def_word "ALIGN", "ALIGN", 0
 ; (( w1 -- (($0000 - w1)) )) 
 def_word "NEGATE", "NEGATE", 0
         lda #$00
-        bne cpts_
+        beq cpts_
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- (($FFFF - w1)) )) 
@@ -920,10 +876,38 @@ def_word "LIT", "LIT", 0
 ;-----------------------------------------------------------------------
 ; (( -- ))  
 def_word "DODOES", "DODOES", 0
-        ; zzzz
+        lda ip + 0
+        pha
+        sta ip + 1
+        pha
+        ; zzzzz
         jmp next_
 
 ;-----------------------------------------------------------------------
+; (( -- ip )) eForth dovar, push IP++  
+def_word "DOVAR", "DOVAR", 0
+        dex
+        dex
+        lda ip + 0
+        sta 0, x
+        lda ip + 1
+        sta 1, x
+        clc
+        bcc bump_
+
+;-----------------------------------------------------------------------
+; (( -- (ip) )) eForth docon, push (IP)++ 
+def_word "DOCON", "DOCON", 0
+        dex
+        dex
+        lda (ip), y
+        sta 0, x
+        iny 
+        lda (ip), y
+        sta 1, x
+        clc
+        bcc bump_
+        
 ;-----------------------------------------------------------------------
 ; (( -- ))  
 def_word "0BRANCH", "QBRANCH", 0
@@ -943,29 +927,6 @@ bump_:
 @bcc:
         jmp next_
 
-;-----------------------------------------------------------------------
-; (( -- ip )) eForth dovar, push IP++  
-def_word "DOVAR", "DOVAR", 0
-        dex
-        dex
-        lda ip + 0
-        sta 0, x
-        lda ip + 1
-        sta 1, x
-        jmp bump_
-
-;-----------------------------------------------------------------------
-; (( -- (ip) )) eForth docon, push ((IP))++ 
-def_word "DOCON", "DOCON", 0
-        dex
-        dex
-        lda (ip), y
-        sta 0, x
-        iny 
-        lda (ip), y
-        sta 1, x
-        jmp bump_
-        
 ;-----------------------------------------------------------------------
 ; (( -- ))    branch by offset, 16-bit signed  
 def_word "BRANCH", "BRANCH", 0
@@ -1050,7 +1011,7 @@ def_word "MOVE", "MOVE", 0
         bcc cmove_
 
 ;-----------------------------------------------------------------------
-; (( a1 a2 u  -- ))    move bytes, 16-bits  
+; (( a1 a2 u  -- ))    move bytes, 16-bits, no optmized
 def_word "CMOVE", "CMOVE", 0
 cmove_:
         lda #3
@@ -1097,6 +1058,7 @@ def_word ".", "DOT", 0
 	jmp next_
 
 ;----------------------------------------------------------------------
+; converts a byte value to hexadecimal
 puthex:
         pha
         ror
@@ -1116,10 +1078,12 @@ puthex:
 
 ----------------------------------------------------------------------
 ;       code a ASCII $FF hexadecimal in a byte
-;       not working
+;       zzzz not working
 number:
 
 	ldy #0
+        sty one + 0
+        sty one + 1
 
 	jsr @very
 	asl
@@ -1146,41 +1110,55 @@ number:
 	clc ; clean
 	rts
 
-@very:
-	lda ((tout)), y
+;-----------------------------------------------------------------------
+; convert a character to a value, valid bases 1 to 36 only
+;
+digits:
+	lda (two), y
 	iny
-	cpy #1
-	bne @digt
-        pha
+sneg:
 	; negative sign ?
 	cmp #'-'
-	beq @very
+        bne @spos
+	lda #$FF
+        bne @ends
+spos:
 	; positive sign ?
 	cmp #'+'
-        beq @very
-@digt:
+        bne @vals
+        lda #$FE
+        bne @ends
+vals:
+        ; valid 0 ? 
+	cmp #'['	
+        bmi @valu
+        lda #$FD        
+        bne @ends
+valu:
+        ; valid Z ? 
+	cmp #'0'	
+        bmi @digs
+        lda #$FC        
+        bne @ends
+@digs:
+        ; control ?
 	sec
 	sbc #$30	; test < ' '
-	bmi @erro
+        ; digit ?
 	cmp #10		; test < 10
-	bcc @endc
+	bcc @basv
 	sbc #$07	; adjust for letters
-	; any valid digit, A-Z, do not care 
-	cmp base + 0	; zzzz page zero ?
-	bmi @endc
-@erro:
-        
-@endc:
-        pla
-        cmp #'-'
-        bne @ends
-
+@basv:
+	cmp base + 0	
+        bcc @ends
+        lda #$FB        ; overflow base
 @ends:
+        ; a returns a value or error code if negative 
 	rts
 
 ;-----------------------------------------------------------------------
 ;
-; Forth stuff:
+; Forth inner stuff:
 ;
 ; ip MUST be preserved and reserved, for those routines
 ;
@@ -1493,300 +1471,6 @@ quit:
 ; MINIMAL THREAD CODE DEPENDS ON IT !
 ends:
 ;-----------------------------------------------------------------------
-
-;-----------------------------------------------------------------------
-;   COMPOSE WORDS, pre-compiled
-;-----------------------------------------------------------------------
-
-;-----------------------------------------------------------------------
-; (( w1 w2 -- ((w1 < w2)) )) 
-def_word "<", "LTH", 0
-        .word MINUS, ZLT
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( w1 w2 -- ((w1 > w2)) )) 
-def_word ">", "GTH", 0
-        .word SWAP, LTH
-	.word EXIT 
-
-;-----------------------------------------------------------------------
-; (( w1 w2 -- (w1) (w2) ))     
-def_word "2@", "TWOAT", 0
-        .word DUP, CELL, PLUS, FETCH, SWAP, FETCH
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( w1 w2 --  ))     
-def_word "2!", "TWOTO", 0
-        .word SWAP, OVER, STORE, CELL, PLUS, STORE
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( w1 w2 --  ))     
-def_word "2R>", "TWORTO", 0
-        .word RTO, RTO, SWAP
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- w1 w2 ))     
-def_word "2>R", "TWOTOR", 0
-        .word SWAP, TOR, TOR
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- w1 w2 ))     
-def_word "2R@", "TWORPAT", 0
-        .word RTO, RTO, TWODUP, TWORTO
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( w1 w2 --  ))     
-def_word "2DROP", "TWODROP", 0
-        .word DROP, DROP
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( w1 w2  -- w1 w2 w1 w2 ))     
-def_word "2DUP", "TWODUP", 0
-        .word OVER, OVER
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( w1 w2 -- w1 w2 w1 w2 ))  ????   
-def_word "2OVER", "TWOOVER", 0
-        .word TWOTOR, TWODUP, TWORTO, TWOSWAP
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( w1 w2 w3 w4 -- w3 w4 w1 w2 ))     
-def_word "2SWAP", "TWOSWAP", 0
-        .word ROT, TOR, ROT, RTO
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( w1 --  w1 + CELL ))     
-def_word "CELL+", "CELLPLUS", 0
-        ; cells is two 
-        .word TWOPLUS
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( w1 -- w1 * 2 ))     
-def_word "CELLS", "CELLS", 0
-        ; cells is two 
-        .word ASFL
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; dictionary stuff
-;-----------------------------------------------------------------------
-
-;-----------------------------------------------------------------------
-; (( -- ))    find a word in dictionary, return CFA or FALSE (0x0))  
-; zzzz
-def_word "FIND", "FINDF", 0
-        .word DROP
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- ))      
-def_word "HERE", "HERE", 0
-        .word DP, FETCH
-	.word EXIT 
-
-;-----------------------------------------------------------------------
-; (( -- ))  
-def_word "DP+", "DPADD", 0
-        .word HERE, PLUS, DP, STORE
-	.word EXIT 
-
-;-----------------------------------------------------------------------
-; (( -- ))      
-def_word "ALLOC", "ALLOC", 0
-        .word CELLS, DPADD
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- ))   
-def_word ",", "COMMA", 0
-        .word HERE, STORE, CELL, DPADD
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- ))   
-def_word "'", "TICK", 0
-        .word FINDF
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- ))   easy way 
-def_word "POSTPONE", "POSTPONE", IMMEDIATE
-        .word TICK, COMMA
-	.word EXIT
-
-;----------------------------------------------------------------------
-; (( -- ))  state mode compile
-def_word "[", "LBRAC", 0
-        .word ZERO, STATE, STORE
-	.word EXIT
-
-;----------------------------------------------------------------------
-; (( -- ))  state mode interprete
-def_word "]", "RBRAC", 0
-        .word ONE, STATE, STORE
-	.word EXIT
-
-;----------------------------------------------------------------------
-; (( a1 -- n a2 ))  word from buffer, 
-;       return size and address, or zero, update toin 
-;
-;       DOES NOT HANDLE END OF LINE
-;       classic, copy from TOIN to TIB, 
-;       tib is a internal 32 byte buffer
-;       WORD putw in TIB or HERE ???
-;       toin is a external >80 bytes buffer
-;       when empty refill, or accept, or expect
-
-def_word "WORD", "WORD", 0
-        .word TOIN, FETCH, 
-        .word DUP, BL, CSKIP, PLUS   
-        .word DUP, BL, CSCAN, OVER, OVER 
-        .word PLUS, TOIN, STORE 
-	.word EXIT
-
-;----------------------------------------------------------------------
-; (( -- a ))  ZZZZ
-def_word "CREATE", "CREATE", 0
-        .word BL, WORD, HERE, CMOVE 
-        .word EXIT
-
-;----------------------------------------------------------------------
-; (( -- ))  ZZZZ
-def_word "ACCEPT", "ACCEPT", 0
-        .word DUP
-        .word EXIT
-;----------------------------------------------------------------------
-; (( -- ))  compile a word
-def_word ":", "COLON", 0
-	.word HERE, LAST, STORE
-	.word LATEST, FETCH, COMMA
-        .word CREATE, RBRAC
-        .word EXIT
-
-;----------------------------------------------------------------------
-; (( w1 -- ))  ends a compile word
-def_word ";", "SEMIS", 0
-	.word DOCON, EXIT, COMMA
-        .word LAST, FETCH, LATEST, STORE, LBRAC
-        .word EXIT
-
-;-----------------------------------------------------------------------
-;       eForth alike, all offsets 
-;-----------------------------------------------------------------------
-
-;-----------------------------------------------------------------------
-; (( -- ))     
-def_word "IF", "IF", IMMEDIATE
-        .word DOCON, QBRANCH, COMMA
-        .word HERE, ZERO, COMMA
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- ))     
-def_word "THEN", "THEN", IMMEDIATE
-        .word HERE, OVER, MINUS, SWAP, STORE
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- ))     
-def_word "ENDIF", "ENDIF", IMMEDIATE
-        .word DOCON, THEN, COMMA
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- ))     
-def_word "END", "END", IMMEDIATE
-        .word DOCON, UNTIL, COMMA
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- ))     
-def_word "ELSE", "ELSE", IMMEDIATE
-        .word DOCON, BRANCH, COMMA
-        .word HERE, ZERO, COMMA
-        .word SWAP, THEN
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- ))     
-def_word "BEGIN", "BEGIN", IMMEDIATE
-        .word HERE
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- ))     
-def_word "AGAIN", "AGAIN", IMMEDIATE
-        .word DOCON, BRANCH, COMMA
-        .word HERE, MINUS, COMMA
-	.word EXIT 
-
-;-----------------------------------------------------------------------
-; (( -- ))     
-def_word "UNTIL", "UNTIL", IMMEDIATE
-        .word DOCON, QBRANCH, COMMA 
-        .word HERE, MINUS, COMMA
-	.word EXIT 
-
-;-----------------------------------------------------------------------
-; (( -- ))     
-def_word "WHILE", "WHILE", IMMEDIATE
-        .word IF, TWOPLUS
-	.word EXIT 
-
-;-----------------------------------------------------------------------
-; (( -- ))     
-def_word "REPEAT", "REPEAT", IMMEDIATE
-        .word DOCON, AGAIN, COMMA
-        .word HERE, SWAP, STORE
-	.word EXIT 
-
-;-----------------------------------------------------------------------
-; (( -- )) counts down 
-def_word "FOR", "FOR", IMMEDIATE
-        .word DOCON, TOR, COMMA, HERE
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- )) until zero     
-def_word "NEXT", "NEXT", IMMEDIATE
-        .word DOCON, DONEXT, COMMA
-        .word DOCON, UNTIL, COMMA
-        .word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- )) decrements the counter and verify
-def_word "DONEXT", "DONEXT", 0
-        .word RTO, ONEMINUS, DUP
-        .word IF, TOR, FALSE
-        .word ELSE, INVERT
-        .word THEN
-	.word EXIT
-
-;-----------------------------------------------------------------------
-
-;-----------------------------------------------------------------------
-; BEWARE, MUST BE AT END OF PRE-POSTPONED-COMPOSED ! 
-;-----------------------------------------------------------------------
-; (( w1 -- w2 w3 ))     
-def_word "NULL", "NULL", 0
-        .word FALSE
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; END OF CODE
-.end
-
 ;-----------------------------------------------------------------------
 ; search the dictionary for a word, returns the cfa or null
 ;
@@ -2125,14 +1809,56 @@ nmos_:
 .end
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 w3 -- w2 w3 w1 ))     
-def_word "ROT2", "ROTF2", 0
-        .word TOR, SWAP, RTO, SWAP
-	.word EXIT
+;       beware, self modify, non relocable code
+;       overhead (bytes/cycles) 2/2 + 2/2 + 3/4 + 3/4 == 10/12 
+;       resizes by 17 * 4 = 68 less bytes
+;-----------------------------------------------------------------------
+; (( w1 w2 -- w1 OPC w2 )) 
+def_word "OPC", "OPCo", 0
+opc_a:
+        sta opc_b
+        sta opc_c
+        lda 2, x
+opc_b:
+        and 0, x
+        sta 2, x
+        lda 3, x
+opc_c:
+        and 1, x
+        sta 3, x
+        inx
+        inx
+        jmp next_
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 w3 -- w3 w1 w2 ))     
-def_word "-ROT2", "ROTB2", 0
-        .word SWAP, TOR, SWAP, RTO
-	.word EXIT
+; (( w1 w2 -- w1 AND w2 )) 
+def_word "AND", "ANDo", 0
+        lda #$35
+        bne opc_a
+        
+;-----------------------------------------------------------------------
+; (( w1 w2 -- w1 AND w2 )) 
+def_word "OR", "ORo", 0
+        lda #$15
+        bne opc_a
+        
+;-----------------------------------------------------------------------
+; (( w1 w2 -- w1 AND w2 )) 
+def_word "EOR", "EORo", 0
+        lda #$55
+        bne opc_a
+        
+;-----------------------------------------------------------------------
+; (( w1 w2 -- w1 AND w2 )) 
+def_word "+", "PLUSo", 0
+        lda #$75
+        bne opc_a
+        
+;-----------------------------------------------------------------------
+; (( w1 w2 -- w1 AND w2 )) 
+def_word "-", "MINUSo", 0
+        lda #$F5
+        bne opc_a
 
+;-----------------------------------------------------------------------
+.endif

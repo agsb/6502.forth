@@ -184,7 +184,7 @@ boot:
 
 ;-----------------------------------------------------------------------
 ; forth variables start at U0
-U0 = *
+; U0 = *
 
 ; alias for user area
 
@@ -236,11 +236,11 @@ head:   .word $0
 page:   .word $0
 heap:   .word $0
 
-dev:    .word $0        ; devices (type)
-und:    .word $0        ; units
-cld:    .word $0        ; cilinders
-blk:    .word $0        ; blocks
-scr:    .word $0        ; screens
+tdev:    .word $0        ; devices (type)
+tund:    .word $0        ; units
+tcld:    .word $0        ; cilinders
+tblk:    .word $0        ; blocks
+tscr:    .word $0        ; screens
 
 
 ;----------------------------------------------------------------------

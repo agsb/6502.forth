@@ -225,6 +225,38 @@ def_word ";", "SEMIS", 0
 ;       controls alike, all offsets 
 ;-----------------------------------------------------------------------
 
+;def_word ">MARK", "TOMARK", 0
+;        .word HERE, ZERO, COMMA
+;        .word EXIT
+
+;def_word "<MARK", "ATMARK", 0
+;        .word HERE
+;        .word EXIT
+
+;def_word ">RESOLVE", "TORESOLVE", 0
+;        .word HERE, SWAP, COMMA
+;        .word EXIT
+
+;def_word "<RESOLVE", "TORESOLVE", 0
+;        .word COMMA
+;        .word EXIT
+
+;: >MARK ( -- addr) here 0 , ;
+;: <MARK ( -- addr) here ;
+;: >RESOLVE ( addr -- ) here swap (forth) ! ;
+;: <RESOLVE ( -- addr) , ;
+
+;: IF ( flag -- ) COMPILE (?BRANCH) >MARK ; immediate
+;: ELSE ( -- ) COMPILE (BRANCH) >MARK swap >RESOLVE ; immediate
+;: THEN ( -- ) >RESOLVE ; immediate
+;: BEGIN ( -- ) <MARK ; immediate
+;: UNTIL ( flag -- ) COMPILE (?BRANCH) <RESOLVE ; immediate
+;: AGAIN ( flag -- ) COMPILE (BRANCH)  <RESOLVE ; immediate
+;: WHILE ( flag -- ) COMPILE (?BRANCH) >MARK ; immediate
+;: REPEAT ( -- ) COMPILE (BRANCH) swap <RESOLVE >RESOLVE ; immediate
+
+;-----------------------------------------------------------------------
+;       old school, offset branches
 ;-----------------------------------------------------------------------
 ; (( -- ))     
 def_word "BEGIN", "BEGIN", IMMEDIATE
@@ -345,6 +377,11 @@ def_word "IS", "IS", IMMEDIATE
         .word POSTPONE
         .word EXIT         
 
+;-----------------------------------------------------------------------
+; (( w1 -- w2 w3 ))     
+def_word "?", "QST", 0
+        .word FETCH, DOT
+	.word EXIT
 ;-----------------------------------------------------------------------
 ; (( w1 -- w2 w3 ))     
 def_word "NOOP", "NOOP", 0

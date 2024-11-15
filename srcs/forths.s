@@ -73,11 +73,6 @@ hcount .set hcount + 1
 makelabel "", label
 .endmacro
 
-; goto inner next
-.macro release
-        jmp (void)
-.endmacro
-
 ;-----------------------------------------------------------------------
 ; variables for macro header
 
@@ -179,6 +174,12 @@ boot:
 ; forth variables start at U0
 U0 = *
 
+; goto inner next
+.macro release
+        ; goto next
+        jmp (void)
+.endmacro
+
 void:           .word $0        ; reserved, will point to next_
 
 s0:             .word $0        ; mark of data stack
@@ -224,20 +225,18 @@ main:
 ;---------------------------------------------------------------------
 ;  init of lib6502 emulator 
 ;---------------------------------------------------------------------
-;
-getchar:
+getc:
         lda $E000
 
 eofs:
-; EOF ?
-        cmp #$FF ; also clean carry :))
+        cmp #$FF 
         beq byes
 
-putchar:
+putc:
         sta $E000
         rts
 
-; exit for emulator
+; exit from emulator
 byes:
         jmp $0000
 
@@ -261,7 +260,8 @@ def_word "NULL", "NULL", 0
         nop
         nop
         nop
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 << 1 )) roll left, C=0, C -> b0, b7 -> C
@@ -269,7 +269,8 @@ def_word "RSFL", "RSFL", 0
         clc
         rol 0, x
         rol 1, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 >> 1 )) roll right, C=0, C -> b7, b0 -> C
@@ -277,27 +278,8 @@ def_word "RSFR", "RSFR", 0
         clc
         ror 1, x
         ror 0, x
-        release
-
-;-----------------------------------------------------------------------
-; (( w1 -- w1 << 1 )) arithmetic left, 0 -> b0, b7 -> C
-def_word "2*", "ASFL", 0
-        ; get sign bit
-        ldy 1, x
-        ; rolls
-        clc
-        rol 0, x
-        rol 1, x
-; set sign bit
-sign_:
-        tya
-        bmi sign_
-        release
-@setbit:
-        lda #$80
-        ora 1, x
-        sta 1, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 << 1 )) arithmetic right, C -> b7, b0 -> C
@@ -312,11 +294,34 @@ def_word "2/", "ASFR", 0
         bcc sign_
 
 ;-----------------------------------------------------------------------
+; (( w1 -- w1 << 1 )) arithmetic left, 0 -> b0, b7 -> C
+def_word "2*", "ASFL", 0
+        ; get sign bit
+        ldy 1, x
+        ; rolls
+        clc
+        rol 0, x
+        rol 1, x
+; set sign bit
+sign_:
+        tya
+        bmi sign_
+        ;goto next
+	release
+@setbit:
+        lda #$80
+        ora 1, x
+        sta 1, x
+        ;goto next
+	release
+
+;-----------------------------------------------------------------------
 ; (( w1 -- ))
 def_word "DROP", "DROP", 0
         inx
         inx
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- w1 )) 
@@ -327,7 +332,8 @@ def_word "NIP", "NIP", 0
         sta 3, x
         inx
         inx
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 w1 )) 
@@ -335,7 +341,8 @@ def_word "?DUP", "QDUP", 0
         lda 0, x
         eor 1, x
         bne dups_
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 w1 )) 
@@ -347,7 +354,8 @@ dups_:
         sta 0, x
         lda 3, x
         sta 1, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- w2 w1 w2)) copy the second element to top.
@@ -358,7 +366,8 @@ def_word "OVER", "OVER", 0
         sta 0, x
         lda 3, x
         sta 1, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( -- w1 )) R(( w1 -- w1 ))  
@@ -378,7 +387,8 @@ def_word "R@", "RAT", 0
 def_word "RDROP", "RDROP", 0
         pla
         pla
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- )) R(( -- w1)) 
@@ -391,7 +401,8 @@ tor_:
 drop_:
         inx
         inx
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( -- w1 )) R(( w1 -- )) 
@@ -404,7 +415,8 @@ putw_:
         sta 1, x
         pla
         sta 0, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- w2 w1 )) 
@@ -468,7 +480,8 @@ msbs_:
         sta 3, x
         inx
         inx
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- w1 OR w2 )) 
@@ -556,7 +569,8 @@ false2:
 same2_:
         sta 0, x
         sta 1, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( -- 0xFFFF )) 
@@ -617,9 +631,8 @@ def_word "=", "EQ", 0
 ; (( a c -- )) *a = 0x00FF AND c
 def_word "C!", "CSTORE", 0
         lda 2, x
-        sta (0,x)
         clc
-        bcc drop2
+        bcc stow_
 
 ;-----------------------------------------------------------------------
 ; (( a w -- )) *a = w 
@@ -631,7 +644,7 @@ def_word "!", "STORE", 0
         inc 1, x
 @bne:
         lda 3, x
-stow2:
+stow_:
         sta (0, x)
 drop2:
         inx
@@ -639,7 +652,8 @@ drop2:
 drop1:
         inx
         inx
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( a w -- ))  
@@ -670,7 +684,8 @@ def_word "D+", "DPLUS", 0
         inx
         dey
         bne @loop
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 w3 w4 -- ((w1 w2 - w3 w4)) )) 
@@ -684,7 +699,8 @@ def_word "D-", "DMINUS", 0
         inx
         dey
         bne @loop
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w2 )) w2 = 0x00FF AND *w1 
@@ -692,7 +708,8 @@ def_word "C@", "CFETCH", 0
         lda (0,x)
         sta 0, x
         sty 0, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w2 )) w2 = *w1 
@@ -707,7 +724,8 @@ def_word "@", "FETCH", 0
         sta 1, x
         pla
         sta 0, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w1+1 )) 
@@ -716,7 +734,8 @@ def_word "1+", "ONEPLUS", 0
         bne @bne
         inc 1, x
 @bne:
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w1-1 ))  
@@ -726,7 +745,8 @@ def_word "1-", "ONEMINUS", 0
         dec 1, x
 @bne:
         dec 0, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w1+2 ))  
@@ -739,7 +759,8 @@ def_word "2+", "TWOPLUS", 0
         bcc @bcc
         inc 1, x
 @bcc:
-        release
+        ;goto next
+	release
         
 ;-----------------------------------------------------------------------
 ; (( w1  -- w1-2 ))  
@@ -752,7 +773,8 @@ def_word "2-", "TWOMINUS", 0
         bcc @bcc
         dec 1, x
 @bcc:
-        release
+        ;goto next
+	release
         
 ;-----------------------------------------------------------------------
 ; (( w -- w )) assure word is even, because CELL is 2 
@@ -763,7 +785,8 @@ def_word "ALIGN", "ALIGN", 0
         ror
         rol
         sta 0, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- (($0000 - w1)) )) 
@@ -783,7 +806,8 @@ cpts_:
         pla
         sbc 1, x
         sta 1, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ;       copy data stack into work space, top 4 cells
@@ -840,7 +864,8 @@ def_word "DODOES", "DODOES", 0
         sta ip + 1
         pha
         ; zzzzz
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( -- ip )) eForth dovar, push IP++  
@@ -884,7 +909,8 @@ bump_:
         bcc @bcc
         inc ip + 1
 @bcc:
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( -- ))    branch by offset, 16-bit signed  
@@ -903,7 +929,8 @@ bran_:
         lda ip + 1
         adc wk + 1
         sta ip + 1
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( a c  -- n ))  skip c, n < 255 
@@ -915,7 +942,7 @@ def_word "CSKIP", "CSKIP", 0
 ; (( a c  -- n ))  scan c, n < 255
 def_word "CSCAN", "CSCAN", 0
         sec 
-        bcs csloop
+        ; bcs csloop
 
 ;-----------------------------------------------------------------------
 csloop:
@@ -927,18 +954,21 @@ csloop:
 @loop:
         lda ((two)), y
         eor one + 0
-; skip or scan
+        ; skip or scan ?
         bcc @cseq
+        ; skip
         beq @ends
-        bne @csne
+        .byte $2C
 @cseq:
+        ; scan
         bne @ends
 @csne:
         iny
         bne @loop
 @ends:
         sty 0, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( n a1 a2 -- m )) 
@@ -958,7 +988,8 @@ def_word "CSAME", "CSAME", 0
         bne @loop
 @ends:
         sty 0, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( u a1 a2 -- ))    move words, 16-bit signed  
@@ -970,7 +1001,7 @@ def_word "MOVE", "MOVE", 0
         bcc cmove_
 
 ;-----------------------------------------------------------------------
-; (( a1 a2 u  -- ))    move bytes, 16-bits, no optmized
+; (( n a1 a2 -- ))    move bytes, 16-bits, signed, not optmized
 def_word "CMOVE", "CMOVE", 0
 cmove_:
         lda #3
@@ -1003,17 +1034,19 @@ cmove_:
         ; and loop
         bne @loop
 @ends:
-        release
+        ;goto next
+	release
         
 ;----------------------------------------------------------------------
-; (( w1 -- ))  code a word in ASCII, hexadecimal
+; (( w -- ))  code a word, in ASCII, hexadecimal
 def_word ".", "DOT", 0
-	lda 0, x
-	jsr puthex
 	lda 1, x
 	jsr puthex
+	lda 0, x
+	jsr puthex
 	inx
 	inx
+	;goto next
 	release
 
 ;----------------------------------------------------------------------
@@ -1033,40 +1066,49 @@ puthex:
         bcc @ends
         adc #$06
 @ends:
-        jmp putchar
+        jmp putc
 
 ;----------------------------------------------------------------------
 ;       code a ASCII $FF hexadecimal in a byte
-;       zzzz not working
 ;----------------------------------------------------------------------
 ; (( w1 -- ))  code a word in ASCII, hexadecimal
-def_word "NUMBER", "NUMBER", 0
-        sty wk + 0
-        sty wk + 1
+def_word "??", "NUMBER", 0
+        sty 0, x
+        sty 1, x
 
 	jsr @gethex
+        bmi @erro
 	asl
 	asl
 	asl
 	asl
-	sta one + 1
+	sta 1, x
 
 	jsr @gethex
-	ora one + 1
-	sta one + 1
+        bmi @erro
+	ora 1, x
+	sta 1, x
 	
 	jsr @gethex
+        bmi @erro
 	asl
 	asl
 	asl
 	asl
-	sta one + 0
+	sta 0, x
 
 	jsr @gethex
-	ora one + 0
-	sta one + 0
+        bmi @erro
+        ora 0, x
+	sta 0, x
 
-	rts
+@valid:
+        ; got next_
+        release
+
+@erro:
+        ; what todo ?
+        bmi @valid
 
 @gethex:
         ; control ?
@@ -1078,15 +1120,14 @@ def_word "NUMBER", "NUMBER", 0
 	bcc @ends
         ; alphas ?
 	sbc #07	        ; adjust for letters
-	cmp #$10	
-        bmi @ends
+	cmp #$10        	
+        bmi @ends       ; test > 15
 @erro:
-        lda #0
+        lda #FF
 @ends:
         ; returns a value 
 	rts
 
-;-----------------------------------------------------------------------
 ;-----------------------------------------------------------------------
 ; convert a character to a value, 
 ; valid bases 1 to 36 only -+0-9A-Z.
@@ -1141,6 +1182,92 @@ digits:
         ; a returns a value or error code if negative 
 	rts
 
+;----------------------------------------------------------------------
+; accept an ascii 
+getchar:
+        jsr getc
+        and #$7F    ; mask 7-bit ASCII
+        cmp #' '
+        rts
+
+;----------------------------------------------------------------------
+; accept an ascii line, stores a asciiz line, n < 255
+; (( n a -- u )) NOT STANDART, for use  
+def_word "EXPECT", "EXPECT", 0
+expect:
+        lda #2
+        jsr ds2ws_
+        ldy #0
+        sta #' '        
+@loop:
+        sta (two), y
+        iny 
+        cmp one + 0
+        beq @ends
+        jsr getchar
+        bpl @loop
+; minimal edit for \b \u \n \r ...
+@nl:
+        cmp #10 ;   '\n'
+        beq @end
+@cr:
+        cmp #13 ;   '\r'
+        beq @end
+@bck:
+        cmp #8  ;   '\t'
+        sta #' '
+        beq @ctl
+@cnc:
+        cmp #24 ;   '\u'
+        beq expect
+@ctl:
+        dey
+        dey
+        jmp @loop
+@end:
+        lda #0
+        sta (two), y
+; push how many stored
+        dex
+        dex
+        sty 0, x
+        sta 1, x
+        ;goto next
+	release
+
+;---------------------------------------------------------------------
+; receive a word between spaces
+; to a buffer as c-str
+; note: also ends at controls
+; (( a1 -- a2 n | 0 )) 
+def_word "WORD", "WORD", 0
+word:
+        lda #01
+        jsr setup
+        ldy #0
+        
+@skip:  ; skip spaces
+        lda (one), y
+        beq @ends
+        iny
+        cmp #' '
+        beq @skip
+        tya
+        pha
+
+@scan:  ; scan spaces
+        lda (one), y
+        beq @ends
+        iny
+        cmp #' '
+        bne @scan
+
+@ends:  ; store lenght at head
+        tya
+        ldy #0
+        sta ((toin)), y
+        rts
+
 ;-----------------------------------------------------------------------
 ;
 ; Forth inner stuff:
@@ -1172,7 +1299,8 @@ unnest_:  ; pull from return stack, aka semis
         sta ip + 1
         pla
         sta ip + 0
-        ; release
+        ; ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 next_:  
@@ -1216,7 +1344,8 @@ link_: ; next reference
         sta ip + 0
         lda wk + 1
         sta ip + 1
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 jump_:  ; creed, do the jump
@@ -1225,7 +1354,8 @@ jump_:  ; creed, do the jump
         nop
         ; alternatve for list the primitives
         ; jsr puthex
-        ; release
+        ; ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; process a interrupt, could be a pool, void for now
@@ -1261,7 +1391,8 @@ lsbs_:
         dex
         sta 0, x
         sty 1, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( -- w))  
@@ -1303,6 +1434,12 @@ def_word "TB", "TB", 0
 ; (( -- w))  
 def_word "CR", "CR", 0
         lda #$10
+        bne lsbs_
+
+;-----------------------------------------------------------------------
+; (( -- w))  
+def_word "PACE", "PACE", 0
+        lda #$0B
         bne lsbs_
 
 ;-----------------------------------------------------------------------
@@ -1360,7 +1497,8 @@ lsbw_:
         dex
         sta 0, x
         sty 1, x
-        release
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( -- ))  used to reset S0

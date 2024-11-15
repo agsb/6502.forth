@@ -1,18 +1,33 @@
 ## notes 
 
+15/11/2024
+    
+    reviews of standarts F79, F83, F94 for words about 
+    terminal input buffer and outer interpreter.
+    
+    REFILL, ACCCEPT, EXPECT, QUERY
+    PARSE-WORD, PARSE, WORD
+    SCR, BLK, TONI 
+    BLOCK, BUFFER
+
+    obsolets: QUERY, WORD, TIB
+    
 14/11/2024
+    
     no user offset in forth variables
     user variable points to start of Forth variables, see source.
     review of most compiled words
     grouping compiled words by functional scope
 
 09/11/2024 
+    
     review bios at 6502.toy, 
     defined $040, $140, $400, $1000 limits 
     S0 at $0FF, R0 at $1FF, U0 at $1000+4
     TIB at $0200, with 82 bytes,
  
 06/11/2024 
+    
     house clean 
     rewrite for not splited MSB LSB stacks. 
     wise keep Y=0 in next, 
@@ -20,15 +35,18 @@
     keep return stack at hard stack 
  
 05/11/2024 
+    
     rewrite for use stacks at pages zero and one 
     due overhead at @ and ! 
  
 03/11/2024 
+    
     using absolute splited stacks. 
     interrupt service from R65F11, 
     also http://wilsonminesco.com/6502primer/IRQconx.html 
  
 ## todo
+    
     still NO multi-user and NO multi-task
     still NO vocabularies 
     need DOES>, CREATE, ACCEPT, WORD,   
@@ -96,7 +114,7 @@
 ; __The top of the stack is to the right.__, 
 ;       Forth 2012, Standart.
 ;
-; Sorry.
+; Sorry. Warning.
 ;
 ; I'm using double parentheses as comments of stacks elements
 ; to indicate the top of the is stack is at left, thus,

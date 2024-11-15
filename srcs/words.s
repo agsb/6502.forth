@@ -189,7 +189,7 @@ def_word "]", "RBRAC", 0
 ;       when empty refill, or accept, or expect
 
 def_word "WORD", "WORD", 0
-        .word TOIN, FETCH, 
+        .word TOIN, FETCH 
         .word DUP, BL, CSKIP, PLUS   
         .word DUP, BL, CSCAN, OVER, OVER 
         .word PLUS, TOIN, STORE 
@@ -314,6 +314,11 @@ def_word "DONEXT", "DONEXT", 0
 	.word EXIT
 
 ;-----------------------------------------------------------------------
+;-----------------------------------------------------------------------
+; (( -- ))  
+def_word "DOES", "DOES", 0
+        ; zzzz
+        .word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( -- ))  
@@ -349,6 +354,4 @@ def_word "NULL", "NULL", 0
 ;-----------------------------------------------------------------------
 end_of_compiled:
 ;-----------------------------------------------------------------------
-; END OF CODE
-.end
 

@@ -50,7 +50,7 @@
 ;   h_name:
 ;   .word  link_to_previous_entry
 ;   .byte  strlen((name)) + flags
-;   .byte  name
+;   .byte  name ; sequence of bytes
 ;   name:
 ;
 ;-----------------------------------------------------------------------
@@ -111,7 +111,7 @@ FLAG_IMM = 1<<7
 IMMEDIATE = FLAG_IMM
 
 ; maximum length of words
-LENGTH = 15
+LENGTH = 32
 
 ;-----------------------------------------------------------------------
 ; For use of 6502.toy, reserved for bios
@@ -152,9 +152,6 @@ R0 = $01FF
 
 ;-----------------------------------------------------------------------
 ; terminal input buffer, at least 82 bytes, 
-; must start with blank space 
-; must ends with null, end of line 
-;
 T0 = $0200
 
 ;-----------------------------------------------------------------------
@@ -170,6 +167,8 @@ boot:
         ; prepare hardware 
         nop             ; align even
         jmp main
+
+.byte $DE, $AD, $BE, $EF
 
 ;-----------------------------------------------------------------------
 ; forth variables start at U0
@@ -191,8 +190,7 @@ source:         .word $0        ; CFA of inputs, 0 is terminal
 current:        .word $0        ; current vocabulary
 context:        .word $0        ; context vocabularies chain
 
-;----------------------------------------------------------------------
-
+;-----------------------------------------------------------------------
 main:
 
 ;   if is executing then boot setup was done :))
@@ -269,32 +267,34 @@ def_word "RSFR", "RSFR", 0
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 << 1 )) arithmetic left, 0 -> b0, b7 -> C
 def_word "2*", "ASFL", 0
+        ; get sign bit
+        ldy 1, x
         ; rolls
         clc
         rol 0, x
         rol 1, x
-        bcc @ends
+; set sign bit
 sign_:
+        tya
+        bmi sign_
+        jmp next_
+@setbit:
         lda #$80
         ora 1, x
         sta 1, x
-@ends:
         jmp next_
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 << 1 )) arithmetic right, C -> b7, b0 -> C
 def_word "2/", "ASFR", 0
         ; get sign bit
-        lda 1, x
-        pha
+        ldy 1, x
         ; does a roll
         clc
         ror 1, x
         ror 0, x
-        ; set sign bit
-        pla
-        bmi sign_
-        jmp next_
+        clc
+        bcc sign_
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- ))
@@ -502,6 +502,36 @@ def_word "-", "MINUS", 0
         bcc msbs_
 
 ;-----------------------------------------------------------------------
+; (( w1 w2 -- == 0 )) 
+def_word "D0=", "DZEQ", 0
+        clc
+        ldy #$4
+@loop:        
+        lda 0, x
+        bne @ends
+        inx
+        dey
+        bne @loop
+        sec
+@ends:
+        bcc false2
+        bcs true2
+
+;-----------------------------------------------------------------------
+; (( w1 w2 w3 w4 -- (w1 w2 < w3 w4) )) 
+def_word "D<", "DLTH", 0
+        sec
+        ldy #$4
+@loop:
+        lda 0, x
+        sbc 4, x
+        inx
+        dey
+        bne @loop
+        bcs true2
+        bcc false2
+
+;-----------------------------------------------------------------------
 ; (( -- 0x0000 )) 
 def_word "FALSE", "FFALSE", 0
         dex
@@ -612,36 +642,6 @@ def_word "+!", "PLUSTO", 0
         sta (0, x)
         clc
         bcc drop2
-
-;-----------------------------------------------------------------------
-; (( w1 w2 -- == 0 )) 
-def_word "D0=", "DZEQ", 0
-        clc
-        ldy #$4
-@loop:        
-        lda 0, x
-        bne @ends
-        inx
-        dey
-        bne @loop
-        sec
-@ends:
-        bcc false2
-        bcs true2
-
-;-----------------------------------------------------------------------
-; (( w1 w2 w3 w4 -- (w1 w2 < w3 w4) )) 
-def_word "D<", "DLTH", 0
-        sec
-        ldy #$4
-@loop:
-        lda 0, x
-        sbc 4, x
-        inx
-        dey
-        bne @loop
-        bcs true2
-        bcc false2
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 w3 w4 -- ((w1 w2 + w3 w4)) )) 
@@ -1185,7 +1185,7 @@ look_:
 ;-----------------------------------------------------------------------
 pick_:  ; unique in Minimal Thread Code, 3 + 2 + 2 cc
         lda wk + 1
-        cmp #>ends+1    ; init of heap compose dictionary
+        cmp #(>end_of_native + 1)    
         bmi jump_
 
 ;-----------------------------------------------------------------------
@@ -1220,40 +1220,12 @@ hang_:
         jmp look_
 
 ;-----------------------------------------------------------------------
-;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
-def_word "DP", "DP", 0
-        lda #<dp
-        ldy #>dp
-        clc
-        bcc lsbs_
-
-;-----------------------------------------------------------------------
-; (( -- ))  used to reset S0
-def_word "SP!", "TOSP", 0
-        lda #$FF
-        ldy #$00
-        clc
-        bcc lsbs_
-
-;-----------------------------------------------------------------------
-; (( -- ))  used to reset R0
-def_word "RP!", "TORP", 0
-        lda #$FF
-        ldy #$01
-        clc
-        bcc lsbs_
-
+;       one byte constants
 ;-----------------------------------------------------------------------
 ; (( -- w1 )) index of SP0 
 def_word "SP@", "SPAT", 0
         txa
-lsbs_:
-        dex
-        dex
-        sta 0, x
-        sty 1, x
-        jmp next_
+        beq lsbs_
 
 ;-----------------------------------------------------------------------
 ; (( -- w1 ))  index of RP0
@@ -1262,15 +1234,19 @@ def_word "RP@", "RPAT", 0
         tsx
         txa
         ldx np + 0
+        ldy #$01
         bne lsbs_
 
-;-----------------------------------------------------------------------
-;       one byte constants
 ;-----------------------------------------------------------------------
 ; (( -- w))  
 def_word "0", "ZERO", 0
         lda #0
-        beq lsbs_
+lsbs_:
+        dex
+        dex
+        sta 0, x
+        sty 1, x
+        jmp next_
 
 ;-----------------------------------------------------------------------
 ; (( -- w))  
@@ -1339,12 +1315,61 @@ def_word "CELL", "CCELL", 0
         bne lsbs_
 
 ;-----------------------------------------------------------------------
+; (( -- w ))  reference of forth internal
+def_word "CURRENT", "CURRENT", 0
+        lda #<current
+        ldy #>current
+        bne lsbw_
+
+;-----------------------------------------------------------------------
+; (( -- w ))  reference of forth internal
+def_word "CONTEXT", "CONTEXT", 0
+        lda #<context
+        ldy #>context
+        bne lsbw_
+
+;-----------------------------------------------------------------------
+; (( -- w ))  reference of forth internal
+def_word "SOURCE", "SOURCE", 0
+        lda #<source
+        ldy #>source
+        bne lsbw_
+
+;-----------------------------------------------------------------------
+; (( -- w ))  reference of forth internal
+def_word "DP", "DP", 0
+        lda #<dp
+        ldy #>dp
+lsbw_:
+        dex
+        dex
+        sta 0, x
+        sty 1, x
+        jmp next_
+
+;-----------------------------------------------------------------------
+; (( -- ))  used to reset S0
+def_word "SP!", "TOSP", 0
+        lda #$FF
+        ldy #$00
+        clc
+        bcc lsbw_
+
+;-----------------------------------------------------------------------
+; (( -- ))  used to reset R0
+def_word "RP!", "TORP", 0
+        lda #$FF
+        ldy #$01
+        clc
+        bcc lsbw_
+
+;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal 
 ; must hold at least 84 chars, but 72 is enough
 def_word "TIB", "TIB", 0
         lda #<tibz
         ldy #>tibz
-        bne lsbs_
+        bne lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal 
@@ -1352,56 +1377,35 @@ def_word "TIB", "TIB", 0
 def_word "TOIN", "TOIN", 0
         lda #<toin
         ldy #>toin
-        bne lsbs_
+        bne lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal 
 def_word "LATEST", "LATEST", 0
         lda #<latest
         ldy #>latest
-        bne lsbs_
+        bne lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal  
 def_word "LAST", "LAST", 0
         lda #<last
         ldy #>last
-        bne lsbs_
+        bne lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal 
 def_word "STATE", "STATE", 0
         lda #<state
         ldy #>state
-        bne lsbs_
+        bne lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal
 def_word "BASE", "BASE", 0
         lda #<base
         ldy #>base
-        bne lsbs_
-
-;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
-def_word "CURRENT", "CURRENT", 0
-        lda #<current
-        ldy #>current
-        bne lsbs_
-
-;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
-def_word "CONTEXT", "CONTEXT", 0
-        lda #<context
-        ldy #>context
-        bne lsbs_
-
-;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
-def_word "SOURCE", "SOURCE", 0
-        lda #<source
-        ldy #>source
-        bne lsbs_
+        bne lsbw_
 
 ;----------------------------------------------------------------------
 ; common must
@@ -1439,10 +1443,10 @@ warm:
         sta last + 0
 
 ; next heap free cell, at 256-page:
-        lda #>ends + 1
-        sta here + 1
-        lda #0
-        sta here + 0
+        lda #>end_of_forth
+        sta dp + 1
+        lda #<end_of_forth
+        sta dp + 0
 
 ;---------------------------------------------------------------------
 ;   supose never change
@@ -1458,11 +1462,15 @@ quit:
 ;----------------------------------------------------------------------
 ; BEWARE, MUST BE AT END OF PRIMITIVES ! 
 ; MINIMAL THREAD CODE DEPENDS ON IT !
-end_of_primitives:
+end_of_native:  ;       end of primitives:
+        nop
+        nop
 
 .include "words.s"
 
-end_of_compiled:
+end_of_forth:
+        nop
+        nop
 
 ;----------------------------------------------------------------------
 .end

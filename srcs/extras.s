@@ -333,8 +333,6 @@ nmos_:
         cld
         rts
 
-.end
-
 ;-----------------------------------------------------------------------
 ;       beware, self modify, non relocable code
 ;       overhead (bytes/cycles) 2/2 + 2/2 + 3/4 + 3/4 == 10/12 

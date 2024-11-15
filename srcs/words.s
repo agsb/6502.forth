@@ -113,7 +113,7 @@ def_word "-ROT2", "ROTB2", 0
 ;-----------------------------------------------------------------------
 ; (( -- ))      ; zzzz
 def_word "VARIABLE", "VARIABLE", IMMEDIATE
-        .word CREATE, DOVAR, DOVAR, COMMA, ZERO, COMMA
+        .word CREATE, DOVAR, DOVAR, COMMA, DOVAR, ZERO, COMMA
 	.word EXIT
 
 ;-----------------------------------------------------------------------
@@ -336,7 +336,7 @@ def_word "TO", "TO", 0
 ;-----------------------------------------------------------------------
 ; (( -- ))  
 def_word "DEFER", "DEFER", 0
-        .word CREATE, DOCON, NULL, COMMA 
+        .word CREATE, DOCON, NOOP, COMMA 
         .word EXIT         
 
 ;-----------------------------------------------------------------------
@@ -347,9 +347,13 @@ def_word "IS", "IS", IMMEDIATE
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w2 w3 ))     
-def_word "NULL", "NULL", 0
+def_word "NOOP", "NOOP", 0
         .word FALSE
 	.word EXIT
+
+;-----------------------------------------------------------------------
+; error messages
+erro1:  .asciiz "unmatched DEFER"
 
 ;-----------------------------------------------------------------------
 end_of_compiled:

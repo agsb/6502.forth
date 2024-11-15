@@ -318,7 +318,22 @@ mul_:
 ; extras for 6502
 ; vide eorBookV1.0.1
 
-; set overflow bit
+; .byte $02 will halt
+
+;-----------------------------------------------------------------------
+; verify if is ram or rom
+inrom:
+        nop
+        lda inrom
+        inx inrom
+        cmp inrom
+        bne isram
+isrom:
+        ; clear overflow bit
+        clv       
+        rts
+isram:
+        ; set overflow bit
 setovr_:
         bit @ends
 @ends:

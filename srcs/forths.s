@@ -73,6 +73,11 @@ hcount .set hcount + 1
 makelabel "", label
 .endmacro
 
+; goto inner next
+.macro release
+        jmp (void)
+.endmacro
+
 ;-----------------------------------------------------------------------
 ; variables for macro header
 
@@ -174,7 +179,8 @@ boot:
 ; forth variables start at U0
 U0 = *
 
-void:           .word $0        ; reserved
+void:           .word $0        ; reserved, will point to next_
+
 s0:             .word $0        ; mark of data stack
 r0:             .word $0        ; mark of return stack
 
@@ -249,12 +255,21 @@ byes:
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
+; (( -- )) nop
+def_word "NULL", "NULL", 0
+        nop
+        nop
+        nop
+        nop
+        release
+
+;-----------------------------------------------------------------------
 ; (( w1 -- w1 << 1 )) roll left, C=0, C -> b0, b7 -> C
 def_word "RSFL", "RSFL", 0
         clc
         rol 0, x
         rol 1, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 >> 1 )) roll right, C=0, C -> b7, b0 -> C
@@ -262,7 +277,7 @@ def_word "RSFR", "RSFR", 0
         clc
         ror 1, x
         ror 0, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 << 1 )) arithmetic left, 0 -> b0, b7 -> C
@@ -277,12 +292,12 @@ def_word "2*", "ASFL", 0
 sign_:
         tya
         bmi sign_
-        jmp next_
+        release
 @setbit:
         lda #$80
         ora 1, x
         sta 1, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 << 1 )) arithmetic right, C -> b7, b0 -> C
@@ -301,7 +316,7 @@ def_word "2/", "ASFR", 0
 def_word "DROP", "DROP", 0
         inx
         inx
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- w1 )) 
@@ -312,7 +327,7 @@ def_word "NIP", "NIP", 0
         sta 3, x
         inx
         inx
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 w1 )) 
@@ -320,7 +335,7 @@ def_word "?DUP", "QDUP", 0
         lda 0, x
         eor 1, x
         bne dups_
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 w1 )) 
@@ -332,7 +347,7 @@ dups_:
         sta 0, x
         lda 3, x
         sta 1, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- w2 w1 w2)) copy the second element to top.
@@ -343,7 +358,7 @@ def_word "OVER", "OVER", 0
         sta 0, x
         lda 3, x
         sta 1, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( -- w1 )) R(( w1 -- w1 ))  
@@ -363,7 +378,7 @@ def_word "R@", "RAT", 0
 def_word "RDROP", "RDROP", 0
         pla
         pla
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- )) R(( -- w1)) 
@@ -376,7 +391,7 @@ tor_:
 drop_:
         inx
         inx
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( -- w1 )) R(( w1 -- )) 
@@ -389,7 +404,7 @@ putw_:
         sta 1, x
         pla
         sta 0, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- w2 w1 )) 
@@ -453,7 +468,7 @@ msbs_:
         sta 3, x
         inx
         inx
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- w1 OR w2 )) 
@@ -541,7 +556,7 @@ false2:
 same2_:
         sta 0, x
         sta 1, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( -- 0xFFFF )) 
@@ -624,7 +639,7 @@ drop2:
 drop1:
         inx
         inx
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( a w -- ))  
@@ -655,7 +670,7 @@ def_word "D+", "DPLUS", 0
         inx
         dey
         bne @loop
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 w3 w4 -- ((w1 w2 - w3 w4)) )) 
@@ -669,7 +684,7 @@ def_word "D-", "DMINUS", 0
         inx
         dey
         bne @loop
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w2 )) w2 = 0x00FF AND *w1 
@@ -677,7 +692,7 @@ def_word "C@", "CFETCH", 0
         lda (0,x)
         sta 0, x
         sty 0, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w2 )) w2 = *w1 
@@ -692,7 +707,7 @@ def_word "@", "FETCH", 0
         sta 1, x
         pla
         sta 0, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w1+1 )) 
@@ -701,7 +716,7 @@ def_word "1+", "ONEPLUS", 0
         bne @bne
         inc 1, x
 @bne:
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w1-1 ))  
@@ -711,7 +726,7 @@ def_word "1-", "ONEMINUS", 0
         dec 1, x
 @bne:
         dec 0, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w1+2 ))  
@@ -724,7 +739,7 @@ def_word "2+", "TWOPLUS", 0
         bcc @bcc
         inc 1, x
 @bcc:
-        jmp next_
+        release
         
 ;-----------------------------------------------------------------------
 ; (( w1  -- w1-2 ))  
@@ -737,7 +752,7 @@ def_word "2-", "TWOMINUS", 0
         bcc @bcc
         dec 1, x
 @bcc:
-        jmp next_
+        release
         
 ;-----------------------------------------------------------------------
 ; (( w -- w )) assure word is even, because CELL is 2 
@@ -748,7 +763,7 @@ def_word "ALIGN", "ALIGN", 0
         ror
         rol
         sta 0, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- (($0000 - w1)) )) 
@@ -768,7 +783,7 @@ cpts_:
         pla
         sbc 1, x
         sta 1, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ;       copy data stack into work space, top 4 cells
@@ -825,7 +840,7 @@ def_word "DODOES", "DODOES", 0
         sta ip + 1
         pha
         ; zzzzz
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( -- ip )) eForth dovar, push IP++  
@@ -869,7 +884,7 @@ bump_:
         bcc @bcc
         inc ip + 1
 @bcc:
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( -- ))    branch by offset, 16-bit signed  
@@ -888,7 +903,7 @@ bran_:
         lda ip + 1
         adc wk + 1
         sta ip + 1
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( a c  -- n ))  skip c, n < 255 
@@ -923,7 +938,7 @@ csloop:
         bne @loop
 @ends:
         sty 0, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( n a1 a2 -- m )) 
@@ -943,7 +958,7 @@ def_word "CSAME", "CSAME", 0
         bne @loop
 @ends:
         sty 0, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( u a1 a2 -- ))    move words, 16-bit signed  
@@ -988,7 +1003,7 @@ cmove_:
         ; and loop
         bne @loop
 @ends:
-        jmp next_
+        release
         
 ;----------------------------------------------------------------------
 ; (( w1 -- ))  code a word in ASCII, hexadecimal
@@ -999,7 +1014,7 @@ def_word ".", "DOT", 0
 	jsr puthex
 	inx
 	inx
-	jmp next_
+	release
 
 ;----------------------------------------------------------------------
 ; converts a byte value to hexadecimal
@@ -1157,7 +1172,7 @@ unnest_:  ; pull from return stack, aka semis
         sta ip + 1
         pla
         sta ip + 0
-        ; jmp next_
+        ; release
 
 ;-----------------------------------------------------------------------
 next_:  
@@ -1201,7 +1216,7 @@ link_: ; next reference
         sta ip + 0
         lda wk + 1
         sta ip + 1
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 jump_:  ; creed, do the jump
@@ -1210,7 +1225,7 @@ jump_:  ; creed, do the jump
         nop
         ; alternatve for list the primitives
         ; jsr puthex
-        ; jmp next_
+        ; release
 
 ;-----------------------------------------------------------------------
 ; process a interrupt, could be a pool, void for now
@@ -1246,7 +1261,7 @@ lsbs_:
         dex
         sta 0, x
         sty 1, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( -- w))  
@@ -1345,7 +1360,7 @@ lsbw_:
         dex
         sta 0, x
         sty 1, x
-        jmp next_
+        release
 
 ;-----------------------------------------------------------------------
 ; (( -- ))  used to reset S0
@@ -1435,6 +1450,12 @@ warm:
 
         lda #$10
         sta base + 0
+
+; link for inner next
+        lda #<next_
+        sta void + 0
+        lda #>next_
+        sta void + 1
 
 ; link list of headers
         lda #>NULL

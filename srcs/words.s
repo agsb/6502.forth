@@ -250,6 +250,20 @@ def_word "UNTIL", "UNTIL", IMMEDIATE
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
+; (( -- ))  eForth AHEAD ???? offset 
+def_word "GOTO", "GOTO", IMMEDIATE
+        .word DOCON, BRANCH, COMMA
+        .word HERE, ZERO, COMMA
+	.word EXIT
+
+;-----------------------------------------------------------------------
+; (( -- ))  eForth AFT ???? offset
+def_word "AFT", "AFT", IMMEDIATE
+        .word DROP, DOCON, GOTO, COMMA
+        .word DOCON, BEGIN, COMMA, SWAP
+	.word EXIT
+
+;-----------------------------------------------------------------------
 ; (( -- ))     
 def_word "IF", "IF", IMMEDIATE
         .word DOCON, QBRANCH, COMMA

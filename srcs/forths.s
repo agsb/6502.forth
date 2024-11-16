@@ -933,42 +933,59 @@ bran_:
 	release
 
 ;-----------------------------------------------------------------------
-; (( a c  -- n ))  skip c, n < 255 
-def_word "CSKIP", "CSKIP", 0
-        clc
-        bcc csloop
-
-;-----------------------------------------------------------------------
-; (( a c  -- n ))  scan c, n < 255
-def_word "CSCAN", "CSCAN", 0
-        sec 
-        ; bcs csloop
-
-;-----------------------------------------------------------------------
-csloop:
+; (( c a -- n1 n2 n3 a )) 
+; adapted from Fig-Forth, 
+; c delimiter, a address, n3 offset to start,
+; n2 offset to end, n1 next delimiter after
+; return n1 = 0, when no word before end of line
+def_word "ENCLOSE", "ENCLOSE", 0
         lda #2
         jsr ds2ws_
-        dex
-        dex
+        
+        txa
+        sec
+        sbc #8
+        tax
+
+        sty 3, x
         sty 1, x
-@loop:
-        lda ((two)), y
-        eor one + 0
-        ; skip or scan ?
-        bcc @cseq
-        ; skip
-        beq @ends
-        .byte $2C
-@cseq:
-        ; scan
-        bne @ends
-@csne:
+        dey
+@skip:
         iny
-        bne @loop
-@ends:
+        lda (two), y
+        bne @etcs
+        ; if \0
+        sta 0, x        ; no word, end of line
+        beq @ends
+@etcs:
+        ; if delimiter
+        cmp one + 0
+        beq @skip
+        ; start of word
+        ; if not 
+        sty 4, x        ; first in word
+@scan:
+        lda (two), y
+        bne @cont
+        ; if \0
+        sty 2, x
         sty 0, x
-        ;goto next
-	release
+        tya
+        cmp 4, x
+        bne @ends
+        inc 2, x
+@ends:
+        ; goto next_
+        release
+@cont:
+        sty 2, x        ; last in word
+        iny
+        ; if not delimiter
+        cmp one + 0
+        bne @scan
+        ; end of word
+        sty 0, x        ; first delimiter after word
+        beq @ends
 
 ;-----------------------------------------------------------------------
 ; (( n a1 a2 -- m )) 

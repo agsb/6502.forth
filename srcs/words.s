@@ -42,55 +42,55 @@ def_word "TUCK", "TUCK", 0
 ;       dword stuff
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- (w1) (w2) ))     
-def_word "2@", "TWOAT", 0
+def_word "2@", "DAT", 0
         .word DUP, CELL, PLUS, FETCH, SWAP, FETCH
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 --  ))     
-def_word "2!", "TWOTO", 0
+def_word "2!", "DTO", 0
         .word SWAP, OVER, STORE, CELL, PLUS, STORE
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 --  ))     
-def_word "2R>", "TWORTO", 0
+def_word "2R>", "DRTO", 0
         .word RTO, RTO, SWAP
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( -- w1 w2 ))     
-def_word "2>R", "TWOTOR", 0
+def_word "2>R", "DTOR", 0
         .word SWAP, TOR, TOR
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( -- w1 w2 ))     
-def_word "2R@", "TWORPAT", 0
+; (( -- w1 w2 )) ((R: w1 w2 -- w1 w2 ))    
+def_word "2R@", "DRAT", 0
         .word RTO, RTO, TWODUP, TWORTO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 --  ))     
-def_word "2DROP", "TWODROP", 0
+; (( w1 w2 -- ))     
+def_word "2DROP", "DDROP", 0
         .word DROP, DROP
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2  -- w1 w2 w1 w2 ))     
-def_word "2DUP", "TWODUP", 0
+def_word "2DUP", "DDUP", 0
         .word OVER, OVER
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 -- w1 w2 w1 w2 ))  ????   
-def_word "2OVER", "TWOOVER", 0
+; (( w1 w2 -- w2 w1 w2 ))  ????   
+def_word "2OVER", "DOVER", 0
         .word TWOTOR, TWODUP, TWORTO, TWOSWAP
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 w3 w4 -- w3 w4 w1 w2 ))     
-def_word "2SWAP", "TWOSWAP", 0
+def_word "2SWAP", "DSWAP", 0
         .word ROT, TOR, ROT, RTO
 	.word EXIT
 
@@ -120,13 +120,6 @@ def_word "VARIABLE", "VARIABLE", IMMEDIATE
 ; (( w1 -- ))      ; zzzz
 def_word "CONSTANT", "CONSTANT", IMMEDIATE
         .word CREATE, DOVAR, DOCON, COMMA, COMMA
-	.word EXIT
-
-;-----------------------------------------------------------------------
-; (( -- ))    find a word in dictionary, return CFA or FALSE (0x0))  
-; zzzz
-def_word "FIND", "FINDF", 0
-        .word DROP
 	.word EXIT
 
 ;-----------------------------------------------------------------------
@@ -177,17 +170,28 @@ def_word "]", "RBRAC", 0
         .word ONE, STATE, STORE
 	.word EXIT
 
-;----------------------------------------------------------------------
-; (( a1 -- n a2 ))  word from buffer, 
-;       return size and address, or zero, update toin 
-;
-;       DOES NOT HANDLE END OF LINE
-;       classic, copy from TOIN to TIB, 
-;       tib is a internal 32 byte buffer
-;       WORD putw in TIB or HERE ???
-;       toin is a external >80 bytes buffer
-;       when empty refill, or accept, or expect
+;-----------------------------------------------------------------------
+; (( -- ))    find a word in dictionary, return CFA or FALSE (0x0))  
+def_word "FINDF", "FINDF", 0
+        .word DROP
+	.word EXIT
 
+;-----------------------------------------------------------------------
+; (( -- ))    find a word in dictionary, return CFA or FALSE (0x0))  
+def_word "PFIND", "PFIND", 0
+        .word DROP
+	.word EXIT
+
+;----------------------------------------------------------------------
+; (( c a -- n1 n2 n3 a ))  ZZZZ
+def_word "ENCLOSE", "ENCLOSE", 0
+        .word OVER, OVER,
+        .word 
+        .word EXIT
+
+;----------------------------------------------------------------------
+; (( ???? --  ))
+; to review
 def_word "WORD", "WORD", 0
         .word TOIN, FETCH 
         .word DUP, BL, CSKIP, PLUS   
@@ -196,7 +200,8 @@ def_word "WORD", "WORD", 0
 	.word EXIT
 
 ;----------------------------------------------------------------------
-; (( -- a ))  ZZZZ
+; (( ???? --  ))
+; to review
 def_word "CREATE", "CREATE", 0
         .word BL, WORD, HERE, CMOVE 
         .word EXIT
@@ -206,6 +211,7 @@ def_word "CREATE", "CREATE", 0
 def_word "ACCEPT", "ACCEPT", 0
         .word DUP
         .word EXIT
+
 ;----------------------------------------------------------------------
 ; (( -- ))  compile a word
 def_word ":", "COLON", 0
@@ -220,40 +226,6 @@ def_word ";", "SEMIS", 0
 	.word DOCON, EXIT, COMMA
         .word LAST, FETCH, LATEST, STORE, LBRAC
         .word EXIT
-
-;-----------------------------------------------------------------------
-;       controls alike, all offsets 
-;-----------------------------------------------------------------------
-
-;def_word ">MARK", "TOMARK", 0
-;        .word HERE, ZERO, COMMA
-;        .word EXIT
-
-;def_word "<MARK", "ATMARK", 0
-;        .word HERE
-;        .word EXIT
-
-;def_word ">RESOLVE", "TORESOLVE", 0
-;        .word HERE, SWAP, COMMA
-;        .word EXIT
-
-;def_word "<RESOLVE", "TORESOLVE", 0
-;        .word COMMA
-;        .word EXIT
-
-;: >MARK ( -- addr) here 0 , ;
-;: <MARK ( -- addr) here ;
-;: >RESOLVE ( addr -- ) here swap (forth) ! ;
-;: <RESOLVE ( -- addr) , ;
-
-;: IF ( flag -- ) COMPILE (?BRANCH) >MARK ; immediate
-;: ELSE ( -- ) COMPILE (BRANCH) >MARK swap >RESOLVE ; immediate
-;: THEN ( -- ) >RESOLVE ; immediate
-;: BEGIN ( -- ) <MARK ; immediate
-;: UNTIL ( flag -- ) COMPILE (?BRANCH) <RESOLVE ; immediate
-;: AGAIN ( flag -- ) COMPILE (BRANCH)  <RESOLVE ; immediate
-;: WHILE ( flag -- ) COMPILE (?BRANCH) >MARK ; immediate
-;: REPEAT ( -- ) COMPILE (BRANCH) swap <RESOLVE >RESOLVE ; immediate
 
 ;-----------------------------------------------------------------------
 ;       old school, offset branches
@@ -396,3 +368,39 @@ erro1:  .asciiz "unmatched DEFER"
 end_of_compiled:
 ;-----------------------------------------------------------------------
 
+.ifdef none
+;-----------------------------------------------------------------------
+;       controls alike 
+;-----------------------------------------------------------------------
+
+;def_word ">MARK", "TOMARK", 0
+;        .word HERE, ZERO, COMMA
+;        .word EXIT
+
+;def_word "<MARK", "ATMARK", 0
+;        .word HERE
+;        .word EXIT
+
+;def_word ">RESOLVE", "TORESOLVE", 0
+;        .word HERE, SWAP, COMMA
+;        .word EXIT
+
+;def_word "<RESOLVE", "TORESOLVE", 0
+;        .word COMMA
+;        .word EXIT
+
+;: >MARK ( -- addr) here 0 , ;
+;: <MARK ( -- addr) here ;
+;: >RESOLVE ( addr -- ) here swap (forth) ! ;
+;: <RESOLVE ( -- addr) , ;
+
+;: IF ( flag -- ) COMPILE (?BRANCH) >MARK ; immediate
+;: ELSE ( -- ) COMPILE (BRANCH) >MARK swap >RESOLVE ; immediate
+;: THEN ( -- ) >RESOLVE ; immediate
+;: BEGIN ( -- ) <MARK ; immediate
+;: UNTIL ( flag -- ) COMPILE (?BRANCH) <RESOLVE ; immediate
+;: AGAIN ( flag -- ) COMPILE (BRANCH)  <RESOLVE ; immediate
+;: WHILE ( flag -- ) COMPILE (?BRANCH) >MARK ; immediate
+;: REPEAT ( -- ) COMPILE (BRANCH) swap <RESOLVE >RESOLVE ; immediate
+
+.endif

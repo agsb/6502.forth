@@ -372,8 +372,9 @@ def_word "IS", "IS", IMMEDIATE
 def_word "?", "QST", 0
         .word FETCH, DOT
 	.word EXIT
+
 ;-----------------------------------------------------------------------
-; (( w1 -- w2 w3 ))     
+; (( w1 -- w1 ))     
 def_word "NOOP", "NOOP", 0
         .word FALSE
 	.word EXIT
@@ -381,6 +382,7 @@ def_word "NOOP", "NOOP", 0
 ;-----------------------------------------------------------------------
 ; error messages
 erro1:  .asciiz "unmatched DEFER"
+
 
 ;-----------------------------------------------------------------------
 end_of_compiled:

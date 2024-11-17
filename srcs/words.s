@@ -129,21 +129,21 @@ def_word "HERE", "HERE", 0
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
-; (( -- ))  
-def_word "DP+", "DPADD", 0
-        .word HERE, PLUS, DP, STORE
-	.word EXIT 
+; (( -- ))      
+def_word "ALLOT", "ALLOT", 0
+        .word DPADD, PLUSTO
+	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( -- ))      
-def_word "ALLOC", "ALLOC", 0
-        .word CELLS, DPADD
+; (( -- ))   
+def_word "C,", "CCOMMA", 0
+        .word HERE, STORE, ONE, ALLOT
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( -- ))   
 def_word ",", "COMMA", 0
-        .word HERE, STORE, CELL, DPADD
+        .word HERE, STORE, TWO, ALLOT
 	.word EXIT
 
 ;-----------------------------------------------------------------------

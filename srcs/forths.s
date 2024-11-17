@@ -191,14 +191,16 @@ base:           .word $0        ; number radix for input and output
 latest:         .word $0        ; reference to last link, is LASTEST 
 last:           .word $0        ; reference to last here, is not HERE
 
-tibz:           .word $0        ; TIB, terminal input buffer
-toin:           .word $0        ; TIB reference to next word
+tibz:           .word $0        ; TIB, fixed terminal input buffer 
+toin:           .word $0        ; reference to next word
 
-scr:            .word $0
-blk:            .word $0
+scr:            .word $0        ; actual editing screen
+blk:            .word $0        ; actual interpretation block
 block:          .word $0
-
 source:         .word $0        ; CFA of inputs, 0 is terminal
+
+width:          .word $0        ; maximun size of a word name
+vocabulary:     .word $0        ; newest  vocabulary
 current:        .word $0        ; current vocabulary
 context:        .word $0        ; context vocabularies chain
 
@@ -1682,4 +1684,5 @@ end_of_forth:
 
 ;----------------------------------------------------------------------
 .end
+
 

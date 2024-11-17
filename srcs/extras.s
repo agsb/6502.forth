@@ -339,6 +339,24 @@ setovr_:
 @ends:
         rts
 
+where_me:
+        jsr @oops
+@oops:
+        pla
+        tay
+        iny
+        pla
+
+; where I am, which 256 page.
+where_i_am:
+        jsr @oops
+        tsx
+        lda $100, x
+        .byte $2C
+@oops:   
+        nop
+        rts
+
 ; Z flag is zero in NMOS6502
 nmos_:
         sed
@@ -346,6 +364,34 @@ nmos_:
         lda #$99
         adc #$01
         cld
+        rts
+
+messages:
+        jsr display
+        .asciiz "this message is for display"
+        rts
+
+display:
+        pla 
+        sta message + 0
+        pla 
+        sta message + 1
+        ldy #1  ; stack is one less
+@loop:
+        lda (message), y
+        inc message + 0
+        bne @bnes
+        inc message + 1
+@bnes:
+        ora #0
+        beq @ends
+        jsr putch
+        bne @loop
+@ends:
+        lda message + 1
+        pha
+        lda message + 0
+        pha
         rts
 
 ;-----------------------------------------------------------------------

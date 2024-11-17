@@ -1147,7 +1147,7 @@ def_word "??", "NUMBER", 0
 	cmp #$10        	
         bmi @ends       ; test > 15
 @ctrl:
-        lda #FF
+        lda #$FF
 @ends:
         ; returns a value 
 	rts
@@ -1227,7 +1227,7 @@ expect:
         sta (two), y
         iny 
         cmp one + 0
-        beq @ends
+        beq @end
         jsr getchar
         bpl @loop
 ; minimal edit for \b \u \n \r ...
@@ -1267,7 +1267,7 @@ expect:
 def_word "INWORD", "INWORD", 0
 word:
         lda #01
-        jsr setup
+        jsr ds2ws_
         ldy #0
         
 @skip:  ; skip spaces

@@ -67,7 +67,7 @@ def_word "2>R", "DTOR", 0
 ;-----------------------------------------------------------------------
 ; (( -- w1 w2 )) ((R: w1 w2 -- w1 w2 ))    
 def_word "2R@", "DRAT", 0
-        .word RTO, RTO, TWODUP, TWORTO
+        .word RTO, RTO, DDUP, DRTO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
@@ -85,7 +85,7 @@ def_word "2DUP", "DDUP", 0
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- w2 w1 w2 ))  ????   
 def_word "2OVER", "DOVER", 0
-        .word TWOTOR, TWODUP, TWORTO, TWOSWAP
+        .word DTOR, DDUP, DRTO, DSWAP
 	.word EXIT
 
 ;-----------------------------------------------------------------------
@@ -110,6 +110,11 @@ def_word "-ROT2", "ROTB2", 0
 ; dictionary stuff
 ;-----------------------------------------------------------------------
 
+; (( -- w ))      ; zzzz
+def_word "BLOCK", "BLOCK", 0 
+        .word TIB
+	.word EXIT
+
 ;-----------------------------------------------------------------------
 ; (( -- ))      ; zzzz
 def_word "VARIABLE", "VARIABLE", IMMEDIATE
@@ -131,7 +136,7 @@ def_word "HERE", "HERE", 0
 ;-----------------------------------------------------------------------
 ; (( -- ))      
 def_word "ALLOT", "ALLOT", 0
-        .word DPADD, PLUSTO
+        .word DP, PLUSTO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
@@ -186,7 +191,7 @@ def_word "PFIND", "PFIND", 0
 ; (( c --  )) classic, c delimiter 
 def_word "WORD", "WORD", 0
         .word BLK, FETCH
-        .word ZBRANCH, 10, BLK, FETCH, BLOCK
+        .word QBRANCH, 10, BLK, FETCH, BLOCK
         .word BRANCH, 6, TIB, FETCH
         .word TOIN, FETCH, PLUS, SWAP, ENCLOSE
         .word TOIN, PLUSTO, MINUS, TOR

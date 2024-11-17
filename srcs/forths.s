@@ -59,6 +59,13 @@
 .ident (.concat (arg1, arg2)):
 .endmacro
 
+; goto inner next
+; as hook for user 
+.macro release
+        ; goto next
+        jmp (void)
+.endmacro
+
 ;-----------------------------------------------------------------------
 ; headers 
 ; the entry point for dictionary is h_~name~
@@ -174,12 +181,6 @@ boot:
 ; forth variables start at U0
 U0 = *
 
-; goto inner next
-.macro release
-        ; goto next
-        jmp (void)
-.endmacro
-
 void:           .word $0        ; reserved, will point to next_
 
 s0:             .word $0        ; mark of data stack
@@ -192,6 +193,10 @@ last:           .word $0        ; reference to last here, is not HERE
 
 tibz:           .word $0        ; TIB, terminal input buffer
 toin:           .word $0        ; TIB reference to next word
+
+scr:            .word $0
+blk:            .word $0
+block:          .word $0
 
 source:         .word $0        ; CFA of inputs, 0 is terminal
 current:        .word $0        ; current vocabulary
@@ -1131,7 +1136,7 @@ def_word "??", "NUMBER", 0
         ; control ?
 	sec
 	sbc #' '	; test < ' '
-        bmi @erro
+        bmi @ctrl
         ; digits ?
 	cmp #10		; test < 10
 	bcc @ends
@@ -1139,7 +1144,7 @@ def_word "??", "NUMBER", 0
 	sbc #07	        ; adjust for letters
 	cmp #$10        	
         bmi @ends       ; test > 15
-@erro:
+@ctrl:
         lda #FF
 @ends:
         ; returns a value 
@@ -1215,7 +1220,7 @@ expect:
         lda #2
         jsr ds2ws_
         ldy #0
-        sta #' '        
+        lda #' '        
 @loop:
         sta (two), y
         iny 
@@ -1232,7 +1237,7 @@ expect:
         beq @end
 @bck:
         cmp #8  ;   '\t'
-        sta #' '
+        lda #' '
         beq @ctl
 @cnc:
         cmp #24 ;   '\u'
@@ -1257,7 +1262,7 @@ expect:
 ; to a buffer as c-str
 ; note: also ends at controls
 ; (( a1 -- a2 n | 0 )) 
-def_word "WORD", "WORD", 0
+def_word "INWORD", "INWORD", 0
 word:
         lda #01
         jsr setup
@@ -1282,7 +1287,7 @@ word:
 @ends:  ; store lenght at head
         tya
         ldy #0
-        sta ((toin)), y
+        sta (one), y
         rts
 
 ;-----------------------------------------------------------------------
@@ -1506,6 +1511,30 @@ def_word "SOURCE", "SOURCE", 0
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal
+def_word "SCR", "SCR", 0
+        lda #<scr
+        ldy #>scr
+        clc
+        bcc lsbw_
+
+;-----------------------------------------------------------------------
+; (( -- w ))  reference of forth internal
+def_word "BLK", "BLK", 0
+        lda #<blk
+        ldy #>blk
+        clc
+        bcc lsbw_
+
+;-----------------------------------------------------------------------
+; (( -- w ))  reference of forth internal
+def_word "UP", "UP", 0
+        lda #<up
+        ldy #>up
+        clc
+        bcc lsbw_
+
+;-----------------------------------------------------------------------
+; (( -- w ))  reference of forth internal
 def_word "DP", "DP", 0
         lda #<dp
         ldy #>dp
@@ -1520,6 +1549,7 @@ lsbw_:
 ;-----------------------------------------------------------------------
 ; (( -- ))  used to reset S0
 def_word "SP!", "TOSP", 0
+        ; return hardwired S0
         lda #$FF
         ldy #$00
         clc
@@ -1528,6 +1558,7 @@ def_word "SP!", "TOSP", 0
 ;-----------------------------------------------------------------------
 ; (( -- ))  used to reset R0
 def_word "RP!", "TORP", 0
+        ; return hardwired R0
         lda #$FF
         ldy #$01
         clc
@@ -1537,8 +1568,9 @@ def_word "RP!", "TORP", 0
 ; (( -- w ))  reference of forth internal 
 ; must hold at least 84 chars, but 72 is enough
 def_word "TIB", "TIB", 0
-        lda #<tibz
-        ldy #>tibz
+        ; return hardwire T0
+        lda #$00
+        ldy #$02
         bne lsbw_
 
 ;-----------------------------------------------------------------------

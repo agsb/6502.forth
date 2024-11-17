@@ -183,20 +183,19 @@ def_word "PFIND", "PFIND", 0
 	.word EXIT
 
 ;----------------------------------------------------------------------
-; (( c a -- n1 n2 n3 a ))  ZZZZ
-def_word "ENCLOSE", "ENCLOSE", 0
-        .word OVER, OVER,
-        .word 
-        .word EXIT
-
-;----------------------------------------------------------------------
-; (( ???? --  ))
-; to review
+; (( c --  )) classic, c delimiter 
 def_word "WORD", "WORD", 0
-        .word TOIN, FETCH 
-        .word DUP, BL, CSKIP, PLUS   
-        .word DUP, BL, CSCAN, OVER, OVER 
-        .word PLUS, TOIN, STORE 
+        .word BLK, FETCH
+        .word ZBRANCH, 10, BLK, FETCH, BLOCK
+        .word BRANCH, 6, TIB, FETCH
+        .word TOIN, FETCH, PLUS, SWAP, ENCLOSE
+        .word TOIN, PLUSTO, MINUS, TOR
+        ; header
+        .word HERE, LAST, STORE
+        .word LATEST, COMMA 
+        .word RAT, HERE, CSTORE
+        .word HERE, ONEPLUS, RTO
+        .word CMOVE
 	.word EXIT
 
 ;----------------------------------------------------------------------

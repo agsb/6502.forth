@@ -138,7 +138,7 @@ stsflag:        .byte $0
 up:     .word $0        ; user pointer
 dp:     .word $0        ; dictionary pointer, mixed header + code
 ip:     .word $0        ; instruction pointer
-wk:     .word $0        ; wise left wk just above np
+wk:     .word $0        ; fixed above np
 
 ; extra dummies, 
 np:     .res 8
@@ -189,20 +189,20 @@ r0:             .word $0        ; mark of return stack
 state:          .word $0        ; state of Forth, 1 is compiling
 base:           .word $0        ; number radix for input and output
 latest:         .word $0        ; reference to last link, is LASTEST 
-last:           .word $0        ; reference to last here, is not HERE
+last:           .word $0        ; reference to last here
 
 tibz:           .word $0        ; TIB, fixed terminal input buffer 
-toin:           .word $0        ; reference to next word
+toin:           .word $0        ; reference to next input
 
-scr:            .word $0        ; actual editing screen
-blk:            .word $0        ; actual interpretation block
-block:          .word $0
+scr:            .word $0        ; actual editing screen number
+blk:            .word $0        ; actual interpretation block number
+block:          .word $0        ; actual reference for block space
 source:         .word $0        ; CFA of inputs, 0 is terminal
 
 width:          .word $0        ; maximun size of a word name
-vocabulary:     .word $0        ; newest  vocabulary
 current:        .word $0        ; current vocabulary
 context:        .word $0        ; context vocabularies chain
+vocabulary:     .word $0        ; newest  vocabulary
 
 ;-----------------------------------------------------------------------
 main:
@@ -261,7 +261,7 @@ byes:
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
-; (( -- )) nop
+; (( -- )) just the first word
 def_word "NULL", "NULL", 0
         nop
         nop
@@ -289,33 +289,44 @@ def_word "RSFR", "RSFR", 0
 	release
 
 ;-----------------------------------------------------------------------
-; (( w1 -- w1 << 1 )) arithmetic right, C -> b7, b0 -> C
+; (( w1 -- w1 << 1 )) arithmetic right, sign keep, C -> b7, b0 -> C
 def_word "2/", "ASFR", 0
         ; get sign bit
-        ldy 1, x
-        ; does a roll
-        clc
+        jsr getsign
+        ; rolls
         ror 1, x
         ror 0, x
+        ; put sign bit
         clc
-        bcc sign_
+        bcc putsign
 
 ;-----------------------------------------------------------------------
-; (( w1 -- w1 << 1 )) arithmetic left, 0 -> b0, b7 -> C
+; (( w1 -- w1 << 1 )) arithmetic left, sign keep, 0 -> b0, b7 -> C
 def_word "2*", "ASFL", 0
         ; get sign bit
-        ldy 1, x
+        jsr getsign
         ; rolls
-        clc
         rol 0, x
         rol 1, x
-; set sign bit
-sign_:
+        ; put sign bit
+        clc
+        bcc putsign
+
+;-----------------------------------------------------------------------
+getsign:
+        lda 1, x
+        tay
+        ora #$7FF
+        sta 1, x
+        clc
+        rts
+
+putsign_:
         tya
         bmi sign_
         ;goto next
 	release
-@setbit:
+setsign_:
         lda #$80
         ora 1, x
         sta 1, x
@@ -327,6 +338,14 @@ sign_:
 def_word "DROP", "DROP", 0
         inx
         inx
+        ;goto next
+	release
+
+;-----------------------------------------------------------------------
+; (( -- )) R(( w1 -- )) 
+def_word "RDROP", "RDROP", 0
+        pla
+        pla
         ;goto next
 	release
 
@@ -346,7 +365,7 @@ def_word "NIP", "NIP", 0
 ; (( w1 -- w1 w1 )) 
 def_word "?DUP", "QDUP", 0
         lda 0, x
-        eor 1, x
+        ora 1, x
         bne dups_
         ;goto next
 	release
@@ -369,9 +388,9 @@ dups_:
 def_word "OVER", "OVER", 0
         dex
         dex
-        lda 2, x
+        lda 4, x
         sta 0, x
-        lda 3, x
+        lda 5, x
         sta 1, x
         ;goto next
 	release
@@ -389,14 +408,6 @@ def_word "R@", "RAT", 0
         clc
         bcc push_
         
-;-----------------------------------------------------------------------
-; (( -- )) R(( w1 -- )) 
-def_word "RDROP", "RDROP", 0
-        pla
-        pla
-        ;goto next
-	release
-
 ;-----------------------------------------------------------------------
 ; (( w1 -- )) R(( -- w1)) 
 def_word ">R", "TOR", 0
@@ -432,6 +443,7 @@ def_word "SWAP", "SWAP", 0
         pha
         lda 3, x
         pha
+iswa_:
         lda 0, x
         sta 2, x
         lda 1, x
@@ -450,12 +462,8 @@ def_word "ROT", "ROT", 0
         sta 4, x
         lda 3, x
         sta 5, x
-        lda 0, x
-        sta 2, x
-        lda 1, x
-        sta 3, x
         clc 
-        bcc putw_
+        bcc iswa_
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 w3 -- w2 w3 w1 )) 
@@ -535,6 +543,36 @@ def_word "-", "MINUS", 0
         sbc 1, x
         clc 
         bcc msbs_
+
+;-----------------------------------------------------------------------
+; (( w1 w2 w3 w4 -- ((w1 w2 + w3 w4)) )) 
+def_word "D+", "DPLUS", 0
+        clc
+        ldy #4
+@loop:
+        lda 0, x
+        adc 4, x
+        sta 4, x
+        inx
+        dey
+        bne @loop
+        ;goto next
+	release
+
+;-----------------------------------------------------------------------
+; (( w1 w2 w3 w4 -- ((w1 w2 - w3 w4)) )) 
+def_word "D-", "DMINUS", 0
+        sec
+        ldy #4
+@loop:
+        lda 0, x
+        sbc 4, x
+        sta 4, x
+        inx
+        dey
+        bne @loop
+        ;goto next
+	release
 
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- == 0 )) 
@@ -678,36 +716,6 @@ def_word "+!", "PLUSTO", 0
         sta (0, x)
         clc
         bcc drop2
-
-;-----------------------------------------------------------------------
-; (( w1 w2 w3 w4 -- ((w1 w2 + w3 w4)) )) 
-def_word "D+", "DPLUS", 0
-        clc
-        ldy #4
-@loop:
-        lda 0, x
-        adc 4, x
-        sta 4, x
-        inx
-        dey
-        bne @loop
-        ;goto next
-	release
-
-;-----------------------------------------------------------------------
-; (( w1 w2 w3 w4 -- ((w1 w2 - w3 w4)) )) 
-def_word "D-", "DMINUS", 0
-        sec
-        ldy #4
-@loop:
-        lda 0, x
-        sbc 4, x
-        sta 4, x
-        inx
-        dey
-        bne @loop
-        ;goto next
-	release
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w2 )) w2 = 0x00FF AND *w1 
@@ -1030,6 +1038,7 @@ def_word "CMOVE", "CMOVE", 0
 cmove_:
         lda #3
         jsr ds2ws_
+        ; ldy #0
 @loop:
         ; copy
         lda (six), y
@@ -1208,11 +1217,30 @@ digits:
 
 ;----------------------------------------------------------------------
 ; accept an ascii 
-getchar:
+getascii:
         jsr getc
         and #$7F    ; mask 7-bit ASCII
         cmp #' '
         rts
+
+;----------------------------------------------------------------------
+; (( n a -- n a )) NOT STANDART, for use  
+def_word "UPPERCASE", "UPPERCASE", 0
+        lda #2
+        jsr ds2ws_
+@loop:
+        lda (two), y
+        cmp #'a'
+        bmi @ends
+        cmp #'{'
+        bpl @ends
+        and #$20
+        sta (two), y
+        iny
+        cmp one + 0
+        bne @loop
+        ;goto next_
+        release
 
 ;----------------------------------------------------------------------
 ; accept an ascii line, stores a asciiz line, n < 255
@@ -1228,7 +1256,7 @@ expect:
         iny 
         cmp one + 0
         beq @end
-        jsr getchar
+        jsr getascii
         bpl @loop
 ; minimal edit for \b \u \n \r ...
 @nl:
@@ -1266,8 +1294,10 @@ expect:
 ; (( a1 -- a2 n | 0 )) 
 def_word "INWORD", "INWORD", 0
 word:
-        lda #01
-        jsr ds2ws_
+        lda 0, x
+        sta one + 0
+        lda 1, x
+        sta one + 1
         ldy #0
         
 @skip:  ; skip spaces
@@ -1286,10 +1316,22 @@ word:
         cmp #' '
         bne @scan
 
-@ends:  ; store lenght at head
-        tya
-        ldy #0
-        sta (one), y
+@ends:  
+        jsr pushy_
+        dey
+        jsr pushy_
+        pla
+        tay
+        jsr pushy_
+        ; goto next_
+        release
+
+pushy_:
+        inx
+        inx
+        sty 0, x
+        lda #0
+        sta 1, x
         rts
 
 ;-----------------------------------------------------------------------
@@ -1324,7 +1366,7 @@ unnest_:  ; pull from return stack, aka semis
         pla
         sta ip + 0
         ; ;goto next
-	release
+	; release
 
 ;-----------------------------------------------------------------------
 next_:  
@@ -1375,10 +1417,10 @@ link_: ; next reference
 jump_:  ; creed, do the jump
         
         jmp (wk)
-        nop
         ; alternatve for list the primitives
         ; jsr puthex
         ; ;goto next
+        nop
 	release
 
 ;-----------------------------------------------------------------------

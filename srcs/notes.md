@@ -1,8 +1,13 @@
 ## notes 
 
+18/11/2025
+
+    Review of code for use 65C02 extra opcodes
+
 15/11/2024
     
-    reviews of standarts F79, F83, F94 for words about 
+    Reviews of standarts F79, F83, F94 for words about 
+    
     terminal input buffer and outer interpreter.
     
     REFILL, ACCCEPT, EXPECT, QUERY

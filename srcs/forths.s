@@ -271,6 +271,38 @@ def_word "NULL", "NULL", 0
 	release
 
 ;-----------------------------------------------------------------------
+; (( w1 -- w1 << 1 )) 
+def_word "LSHIFT", "LSHIFT", 0
+        ldy 0, x
+	beq @ends
+@loop:
+	asl 2, x
+        rol 3, x
+        dey
+	bne @loop
+@ends:
+	inx
+	inx
+        ;goto next
+	release
+
+;-----------------------------------------------------------------------
+; (( w1 -- w1 << 1 )) 
+def_word "RSHIFT", "RSHIFT", 0
+        ldy 0, x
+	beq @ends
+@loop:
+	lsr 3, x
+	ror 2, x
+        dey
+	bne @loop
+@ends:
+	inx
+	inx
+        ;goto next
+	release
+
+;-----------------------------------------------------------------------
 ; (( w1 -- w1 << 1 )) roll left, C=0, C -> b0, b7 -> C
 def_word "RSFL", "RSFL", 0
         clc
@@ -292,28 +324,28 @@ def_word "RSFR", "RSFR", 0
 ; (( w1 -- w1 << 1 )) arithmetic right, sign keep, C -> b7, b0 -> C
 def_word "2/", "ASFR", 0
         ; get sign bit
-        jsr getsign
+        jsr getsign_
         ; rolls
         ror 1, x
         ror 0, x
         ; put sign bit
         clc
-        bcc putsign
+        bcc putsign_
 
 ;-----------------------------------------------------------------------
 ; (( w1 -- w1 << 1 )) arithmetic left, sign keep, 0 -> b0, b7 -> C
 def_word "2*", "ASFL", 0
         ; get sign bit
-        jsr getsign
+        jsr getsign_
         ; rolls
         rol 0, x
         rol 1, x
         ; put sign bit
         clc
-        bcc putsign
+        bcc putsign_
 
 ;-----------------------------------------------------------------------
-getsign:
+getsign_:
         lda 1, x
         tay
         ora #$7FF
@@ -323,9 +355,10 @@ getsign:
 
 putsign_:
         tya
-        bmi sign_
+        bmi setsign_
         ;goto next
 	release
+
 setsign_:
         lda #$80
         ora 1, x
@@ -645,11 +678,12 @@ def_word "0<", "ZLT", 0
 ;-----------------------------------------------------------------------
 ; (( w1 w2 -- w1 < w2 ))   
 def_word "U<", "ULT", 0
-        sec
-        lda 1, x
-        sbc 3, x
-        lda 0, x
-        sbc 2, x
+        lda 3, x
+        cmp 1, x
+        bne @ends
+        lda 2, x
+        cmp 0, x
+@ends:
         inx
         inx
         bcc false2
@@ -936,7 +970,6 @@ bran_:
         iny
         lda (ip), y
         sta wk + 1
-
         clc
         lda ip + 0
         adc wk + 0
@@ -1656,9 +1689,14 @@ def_word "BASE", "BASE", 0
 ;----------------------------------------------------------------------
 ; common must
 ;
+;-----------------------------------------------------------------------
+; (( -- w ))  reference of forth internal
+def_word "COLD", "COLD", 0
 cold:
 
-;----------------------------------------------------------------------
+;-----------------------------------------------------------------------
+; (( -- w ))  reference of forth internal
+def_word "WARM", "WARM", 0
 warm:
 
 ; copy block rom to ram ?

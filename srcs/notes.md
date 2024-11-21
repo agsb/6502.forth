@@ -1,5 +1,9 @@
 ## notes 
 
+21/11/2024
+
+    Using ideas from 6502.org forum "Fleet Forth design considerations"
+
 18/11/2025
 
     Review of code for use 65C02 extra opcodes

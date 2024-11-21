@@ -385,6 +385,14 @@ erro1:  .asciiz "unmatched DEFER"
 
 
 ;-----------------------------------------------------------------------
+def_word "STREAM", "STREAM", 0
+        .word BLK, FETCH, QDUP
+        .word QBRANCH, 6, BLOCK, B/BUF
+        .word BRANCH, 8, TIB, XTIB, FETCH
+        .word TOIN, FETCH, OVER, UMIN, /STRING 
+        .word EXIT
+
+;-----------------------------------------------------------------------
 end_of_compiled:
 ;-----------------------------------------------------------------------
 

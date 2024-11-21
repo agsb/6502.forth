@@ -7,33 +7,33 @@ init_of_compiled:
 ;-----------------------------------------------------------------------
 ;       core stuff
 ;-----------------------------------------------------------------------
-; (( w1 w2 -- ((w1 < w2)) )) 
+; ( w1 w2 -- w1 < w2 ) 
 def_word "<", "LTH", 0
         .word MINUS, ZLT
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 -- ((w1 > w2)) )) 
+; ( w1 w2 -- w1 > w2 ) 
 def_word ">", "GTH", 0
         .word SWAP, LTH
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
-; (( w1 --  w1 + CELL ))     
+; ( w --  w + CELL )     
 def_word "CELL+", "CELLPLUS", 0
         ; cells is two 
         .word TWOPLUS
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 -- w1 * 2 ))     
+; ( w -- w * 2 )     
 def_word "CELLS", "CELLS", 0
         ; cells is two 
         .word ASFL
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 -- w1 w2 w1 ))     
+; ( w1 w2 -- w2 w1 w2 )     
 def_word "TUCK", "TUCK", 0
         .word SWAP, OVER
 	.word EXIT
@@ -41,68 +41,68 @@ def_word "TUCK", "TUCK", 0
 ;-----------------------------------------------------------------------
 ;       dword stuff
 ;-----------------------------------------------------------------------
-; (( w1 w2 -- (w1) (w2) ))     
+; ( w1 w2 -- w1 w2 )     
 def_word "2@", "DAT", 0
         .word DUP, CELL, PLUS, FETCH, SWAP, FETCH
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 --  ))     
+; ( w1 w2 --  )     
 def_word "2!", "DTO", 0
         .word SWAP, OVER, STORE, CELL, PLUS, STORE
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 --  ))     
+; ( w1 w2 --  )     
 def_word "2R>", "DRTO", 0
         .word RTO, RTO, SWAP
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( -- w1 w2 ))     
+; ( -- w1 w2 )     
 def_word "2>R", "DTOR", 0
         .word SWAP, TOR, TOR
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( -- w1 w2 )) ((R: w1 w2 -- w1 w2 ))    
+; ( -- w1 w2 ) (R: w1 w2 -- w1 w2 )    
 def_word "2R@", "DRAT", 0
         .word RTO, RTO, DDUP, DRTO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 -- ))     
+; ( w1 w2 -- )     
 def_word "2DROP", "DDROP", 0
         .word DROP, DROP
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2  -- w1 w2 w1 w2 ))     
+; ( w1 w2  -- w1 w2 w1 w2 )     
 def_word "2DUP", "DDUP", 0
         .word OVER, OVER
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 -- w2 w1 w2 ))  ????   
+; ( w1 w2 w3 w4 -- w1 w2 w3 w4 w1 w2 )     
 def_word "2OVER", "DOVER", 0
         .word DTOR, DDUP, DRTO, DSWAP
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 w3 w4 -- w3 w4 w1 w2 ))     
+; ( w1 w2 w3 w4 -- w3 w4 w1 w2 )     
 def_word "2SWAP", "DSWAP", 0
         .word ROT, TOR, ROT, RTO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 w3 w4 w5 w6 -- ???? ))     
-def_word "ROT2", "ROTF2", 0
+; ( w1 w2 w3 w4 w5 w6 -- w5 w6 w1 w2 w3 w4 )     
+def_word "2ROT", "DROTF", 0
         .word TOR, SWAP, RTO, SWAP
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 w3 w4 w5 w6 -- ???? ))     
-def_word "-ROT2", "ROTB2", 0
+; ( w1 w2 w3 w4 w5 w6 -- w3 w4 w5 w6 w1 w2 )     
+def_word "-2ROT", "DBROT", 0
         .word SWAP, TOR, SWAP, RTO
 	.word EXIT
 
@@ -110,67 +110,67 @@ def_word "-ROT2", "ROTB2", 0
 ; dictionary stuff
 ;-----------------------------------------------------------------------
 
-; (( -- w ))      ; zzzz
+; ( -- w )      ; zzzz
 def_word "BLOCK", "BLOCK", 0 
         .word TIB
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( -- ))      ; zzzz
+; ( -- )      
 def_word "VARIABLE", "VARIABLE", IMMEDIATE
-        .word CREATE, DOVAR, DOVAR, COMMA, DOVAR, ZERO, COMMA
+        .word CREATE, LIT, DOVAR, COMMA, LIT, ZERO, COMMA
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( w1 -- ))      ; zzzz
+; ( w -- )      
 def_word "CONSTANT", "CONSTANT", IMMEDIATE
-        .word CREATE, DOVAR, DOCON, COMMA, COMMA
+        .word CREATE, LIT, DOCON, COMMA, COMMA
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( -- ))      
+; ( -- a )      
 def_word "HERE", "HERE", 0
         .word DP, FETCH
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
-; (( -- ))      
+; ( u -- )      
 def_word "ALLOT", "ALLOT", 0
         .word DP, PLUSTO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( -- ))   
+; ( c -- )   
 def_word "C,", "CCOMMA", 0
-        .word HERE, STORE, ONE, ALLOT
+        .word HERE, CSTORE, ONE, ALLOT
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( -- ))   
+; ( -- )   
 def_word ",", "COMMA", 0
         .word HERE, STORE, TWO, ALLOT
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( -- ))   
+; ( -- )   
 def_word "'", "TICK", 0
         .word FINDF
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( -- ))   easy way 
+; ( -- )   easy way 
 def_word "POSTPONE", "POSTPONE", IMMEDIATE
         .word TICK, COMMA
 	.word EXIT
 
 ;----------------------------------------------------------------------
-; (( -- ))  state mode compile
+; ( -- )  state mode compile
 def_word "[", "LBRAC", 0
         .word ZERO, STATE, STORE
 	.word EXIT
 
 ;----------------------------------------------------------------------
-; (( -- ))  state mode interprete
+; ( -- )  state mode interprete
 def_word "]", "RBRAC", 0
         .word ONE, STATE, STORE
 	.word EXIT
@@ -213,11 +213,10 @@ def_word "CREATE", "CREATE", 0
 ;----------------------------------------------------------------------
 ; (( -- ))  ZZZZ
 def_word "ACCEPT", "ACCEPT", 0
-        .word DUP
         .word EXIT
 
 ;----------------------------------------------------------------------
-; (( -- ))  compile a word
+; ( -- )  compile a word
 def_word ":", "COLON", 0
 	.word HERE, LAST, STORE
 	.word LATEST, FETCH, COMMA
@@ -225,7 +224,7 @@ def_word ":", "COLON", 0
         .word EXIT
 
 ;----------------------------------------------------------------------
-; (( w1 -- ))  ends a compile word
+; ( -- )  ends a compile word
 def_word ";", "SEMIS", 0
 	.word DOCON, EXIT, COMMA
         .word LAST, FETCH, LATEST, STORE, LBRAC
@@ -234,43 +233,45 @@ def_word ";", "SEMIS", 0
 ;-----------------------------------------------------------------------
 ;       old school, offset branches
 ;-----------------------------------------------------------------------
-; (( -- ))     
+; ( -- )     
 def_word "BEGIN", "BEGIN", IMMEDIATE
         .word HERE
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; (( -- ))     
+; ( -- )     
 def_word "AGAIN", "AGAIN", IMMEDIATE
-        .word DOCON, BRANCH, COMMA
+        .word LIT, BRANCH, COMMA
         .word HERE, MINUS, COMMA
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; (( -- ))     
 def_word "UNTIL", "UNTIL", IMMEDIATE
-        .word DOCON, QBRANCH, COMMA 
+        .word LIT, QBRANCH, COMMA 
         .word HERE, MINUS, COMMA
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; (( -- ))  eForth AHEAD ???? offset 
 def_word "GOTO", "GOTO", IMMEDIATE
-        .word DOCON, BRANCH, COMMA
+        .word LIT, BRANCH, COMMA
         .word HERE, ZERO, COMMA
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( -- ))  eForth AFT ???? offset
 def_word "AFT", "AFT", IMMEDIATE
-        .word DROP, DOCON, GOTO, COMMA
-        .word DOCON, BEGIN, COMMA, SWAP
+        .word DROP 
+        .word LIT, GOTO, COMMA
+        .word LIT, BEGIN, COMMA
+        .word SWAP
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( -- ))     
 def_word "IF", "IF", IMMEDIATE
-        .word DOCON, QBRANCH, COMMA
+        .word LIT, QBRANCH, COMMA
         .word HERE, ZERO, COMMA
 	.word EXIT
 
@@ -283,13 +284,13 @@ def_word "THEN", "THEN", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; (( -- ))     
 def_word "ENDIF", "ENDIF", IMMEDIATE
-        .word DOCON, THEN, COMMA
+        .word THEN
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( -- ))     
 def_word "ELSE", "ELSE", IMMEDIATE
-        .word DOCON, BRANCH, COMMA
+        .word LIT, BRANCH, COMMA
         .word HERE, ZERO, COMMA
         .word SWAP, THEN
 	.word EXIT
@@ -297,7 +298,7 @@ def_word "ELSE", "ELSE", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; (( -- ))     
 def_word "END", "END", IMMEDIATE
-        .word DOCON, UNTIL, COMMA
+        .word UNTIL
 	.word EXIT
 
 ;-----------------------------------------------------------------------
@@ -309,21 +310,21 @@ def_word "WHILE", "WHILE", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; (( -- ))     
 def_word "REPEAT", "REPEAT", IMMEDIATE
-        .word DOCON, AGAIN, COMMA
+        .word LIT, AGAIN, COMMA
         .word HERE, SWAP, STORE
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; (( -- )) counts down 
 def_word "FOR", "FOR", IMMEDIATE
-        .word DOCON, TOR, COMMA, HERE
+        .word LIT, TOR, COMMA, HERE
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( -- )) until zero     
 def_word "NEXT", "NEXT", IMMEDIATE
-        .word DOCON, DONEXT, COMMA
-        .word DOCON, UNTIL, COMMA
+        .word LIT, DONEXT, COMMA
+        .word LIT, UNTIL, COMMA
         .word EXIT
 
 ;-----------------------------------------------------------------------
@@ -345,8 +346,7 @@ def_word "DOES", "DOES", 0
 ;-----------------------------------------------------------------------
 ; (( -- ))  
 def_word "VALUE", "VALUE", 0
-        .word CREATE, DOCON, DOCON, COMMA 
-        .WORD DOES, DOVAR, ZERO, COMMA
+        .word CREATE, LIT, DOCON, COMMA 
         .word EXIT         
 
 ;-----------------------------------------------------------------------
@@ -357,8 +357,10 @@ def_word "TO", "TO", 0
 
 ;-----------------------------------------------------------------------
 ; (( -- ))  
-def_word "DEFER", "DEFER", 0
-        .word CREATE, DOCON, NOOP, COMMA 
+def_word "DEFER", "DEFER", IMMEDIATE
+        .word CREATE 
+        .word LIT, NOOP, COMMA 
+        .word LIT, EXIT, COMMA 
         .word EXIT         
 
 ;-----------------------------------------------------------------------
@@ -380,17 +382,16 @@ def_word "NOOP", "NOOP", 0
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; error messages
-erro1:  .asciiz "unmatched DEFER"
-
-
-;-----------------------------------------------------------------------
 def_word "STREAM", "STREAM", 0
         .word BLK, FETCH, QDUP
         .word QBRANCH, 6, BLOCK, B/BUF
         .word BRANCH, 8, TIB, XTIB, FETCH
         .word TOIN, FETCH, OVER, UMIN, /STRING 
         .word EXIT
+
+;-----------------------------------------------------------------------
+; error messages
+erro1:  .asciiz "unmatched DEFER"
 
 ;-----------------------------------------------------------------------
 end_of_compiled:

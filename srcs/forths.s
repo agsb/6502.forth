@@ -132,8 +132,8 @@ LENGTH = 32
 
 * = $40 
 
-intflag:        .byte $0
-stsflag:        .byte $0
+intreq:        .byte $0
+status:        .byte $0
 
 up:     .word $0        ; user pointer
 dp:     .word $0        ; dictionary pointer, mixed header + code
@@ -1394,13 +1394,14 @@ unnest_:  ; pull from return stack, aka semis
 
 ;-----------------------------------------------------------------------
 next_:  
-        ; do interrupts
-        bit intflag
-        bvs hang_
+        ; http://wilsonminesco.com/0-overhead_Forth_interrupts/
+        ; do interrupts, if irqnot is zero else is one
+        ldy intreq
+        beq hang_
 
 ;-----------------------------------------------------------------------
 look_:
-        ldy #1
+        ; ldy #1
         lda (ip), y
         sta wk + 1
         dey

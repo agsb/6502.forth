@@ -297,7 +297,7 @@ def_word "2/", "ASFR", 0
         ror 1, x
         ror 0, x
         ; put sign bit
-        bch putsign_
+        bra putsign_
 
 ;-----------------------------------------------------------------------
 ; ( w -- w << 1 ) arithmetic left, sign keep, 0 -> b0, b7 -> C
@@ -308,13 +308,13 @@ def_word "2*", "ASFL", 0
         rol 0, x
         rol 1, x
         ; put sign bit
-        bch putsign_
+        bra putsign_
 
 ;-----------------------------------------------------------------------
 getsign_:
         lda 1, x
         tay
-        ora #$7FF
+        ora #$7F
         sta 1, x
         clc
         rts
@@ -343,7 +343,7 @@ def_word "LSHIFT", "LSHIFT", 0
         dey
 	bne @loop
 @ends:
-        bch drop_
+        bra drop_
 
 ;-----------------------------------------------------------------------
 ; ( w u -- w >> u )) 
@@ -356,7 +356,7 @@ def_word "RSHIFT", "RSHIFT", 0
         dey
 	bne @loop
 @ends:
-        bch drop_
+        bra drop_
 
 ;-----------------------------------------------------------------------
 ; ( w -- )
@@ -418,7 +418,7 @@ def_word "OVER", "OVER", 0
         lda 4, x
         sta 0, x
         lda 5, x
-        bch stan1_
+        bra stan1_
 
 ;-----------------------------------------------------------------------
 ; ( -- w ) R( w -- w )  
@@ -430,7 +430,7 @@ def_word "R@", "RAT", 0
         lda 1, x
         pha 
         ldx wk
-        bch push_
+        bra push_
         
 ;-----------------------------------------------------------------------
 ; ( w -- )) R( -- w ) 
@@ -440,7 +440,7 @@ tor_:
         pha
         lda 1, x
         pha
-        bch drop_
+        bra drop_
 
 ;-----------------------------------------------------------------------
 ; ( -- w ) R( w -- ) 
@@ -468,7 +468,7 @@ iswa_:
         sta 2, x
         lda 1, x
         sta 3, x
-        bch putw_
+        bra putw_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 -- w3 w1 w2 ) 
@@ -481,7 +481,7 @@ def_word "ROT", "ROT", 0
         sta 4, x
         lda 3, x
         sta 5, x
-        bch iswa_
+        bra iswa_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 -- w2 w3 w1 ) 
@@ -498,7 +498,7 @@ def_word "-ROT", "BROT", 0
         sta 4, x
         lda 1, x
         sta 5, x
-        bch putw_
+        bra putw_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w1 AND w2 ) 
@@ -523,7 +523,7 @@ def_word "OR", "ORT", 0
         sta 2, x
         lda 3, x
         ora 1, x
-        bch stan3_
+        bra stan3_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w1 XOR w2 ) 
@@ -533,7 +533,7 @@ def_word "XOR", "XORT", 0
         sta 2, x
         lda 3, x
         eor 1, x
-        bch stan3_
+        bra stan3_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w1 + w2 ) 
@@ -544,7 +544,7 @@ def_word "+", "PLUS", 0
         sta 2, x
         lda 3, x
         adc 1, x
-        bch stan3_
+        bra stan3_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w2 - w1 ) 
@@ -555,7 +555,27 @@ def_word "-", "MINUS", 0
         sta 2, x
         lda 3, x
         sbc 1, x
-        bch stan3_
+        bra stan3_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- == 0 ) 
+def_word "D0=", "DZEQ", 0
+        lda 2, x
+        bne nfalse
+        lda 3, x
+        bne nfalse
+        lda 0, x
+        bne nfalse
+        lda 1, x
+        bne nfalse
+ntrue:
+        lda #$FF
+        sta 2, x
+        .byte $2c
+nfalse:
+        lda #$00
+        sta 2, x
+        bra stan3_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 w3 w4 -- (w1 w2 + w3 w4) )) 
@@ -572,11 +592,11 @@ def_word "D+", "DPLUS", 0
         sta 4, x
         lda 1, x
         adc 5, x
-        bch stan5_
+        bra stan5_
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 w3 w4 -- (w1 w2 - w3 w4) )) 
-def_word "D-", "DPLUS", 0
+; ( w1 w2 w3 w4 -- (w1 w2 - w3 w4) ) 
+def_word "D-", "DMINUS", 0
         sec
         lda 2, x
         sbc 6, x
@@ -600,26 +620,6 @@ drop2:
         release
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- == 0 ) 
-def_word "D0=", "DZEQ", 0
-        lda 2, x
-        bne nfalse
-        lda 3, x
-        bne nfalse
-        lda 0, x
-        bne nfalse
-        lda 1, x
-        bne nfalse
-ntrue:
-        lda #$FF
-        sta 2, x
-        .byte $2c
-nfalse:
-        lda #$00
-        sta 2, x
-        bch stan3_
-
-;-----------------------------------------------------------------------
 ; (( w1 w2 w3 w4 -- (w1 w2 < w3 w4) )) 
 def_word "D<", "DLTH", 0
         lda 5, x
@@ -634,7 +634,7 @@ def_word "D<", "DLTH", 0
         lda 6, x
         cmp 2, x
         bmi nfalse
-        bch ntrue
+        bra ntrue
 
 
 ;-----------------------------------------------------------------------
@@ -700,7 +700,7 @@ def_word "=", "EQ", 0
         eor 3, x
         bne fends
         sec
-        bch fends
+        bra fends
 
 ;-----------------------------------------------------------------------
 ; ( c a -- ) *a = 0x00FF AND c
@@ -721,10 +721,10 @@ def_word "!", "STORE", 0
         lda 3, x
 stow_:
         sta (0, x)
-drop2:
+ndrop2:
         inx
         inx
-drop1:
+ndrop1:
         inx
         inx
         ;goto next
@@ -743,7 +743,7 @@ def_word "+!", "PLUSTO", 0
 @bcc:
         lda (0, x)
         adc 3, x
-        bch stow_
+        bra stow_
 
 ;-----------------------------------------------------------------------
 ; (( w1  -- w2 )) w2 = 0x00FF AND *w1 
@@ -919,7 +919,7 @@ def_word "DOVAR", "DOVAR", 0
         sta 0, x
         lda ip + 1
         sta 1, x
-        bch bump_
+        bra bump_
 
 ;-----------------------------------------------------------------------
 ; ( -- (ip) ) eForth docon, push (IP)++ 
@@ -931,7 +931,7 @@ def_word "DOCON", "DOCON", 0
         iny 
         lda (ip), y
         sta 1, x
-        bch bump_
+        bra bump_
         
 ;-----------------------------------------------------------------------
 ; ( -- )  
@@ -1263,6 +1263,7 @@ def_word "UPPERCASE", "UPPERCASE", 0
         bpl @ends
         and #$20
         sta (two), y
+@ends:
         iny
         cmp one + 0
         bne @loop
@@ -1565,21 +1566,21 @@ def_word "CELL", "CCELL", 0
 def_word "CURRENT", "CURRENT", 0
         lda #<current
         ldy #>current
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal
 def_word "CONTEXT", "CONTEXT", 0
         lda #<context
         ldy #>context
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal
 def_word "SOURCE", "SOURCE", 0
         lda #<source
         ldy #>source
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal
@@ -1587,7 +1588,7 @@ def_word "SCR", "SCR", 0
         lda #<scr
         ldy #>scr
         clc
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal
@@ -1595,7 +1596,7 @@ def_word "BLK", "BLK", 0
         lda #<blk
         ldy #>blk
         clc
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal
@@ -1603,7 +1604,7 @@ def_word "UP", "UP", 0
         lda #<up
         ldy #>up
         clc
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal
@@ -1624,7 +1625,7 @@ def_word "SP!", "TOSP", 0
         ; return hardwired S0
         lda #$FF
         ldy #$00
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- ))  used to reset R0
@@ -1632,7 +1633,7 @@ def_word "RP!", "TORP", 0
         ; return hardwired R0
         lda #$FF
         ldy #$01
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal 
@@ -1641,7 +1642,7 @@ def_word "TIB", "TIB", 0
         ; return hardwire T0
         lda #$00
         ldy #$02
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal 
@@ -1649,35 +1650,35 @@ def_word "TIB", "TIB", 0
 def_word "TOIN", "TOIN", 0
         lda #<toin
         ldy #>toin
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal 
 def_word "LATEST", "LATEST", 0
         lda #<latest
         ldy #>latest
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal  
 def_word "LAST", "LAST", 0
         lda #<last
         ldy #>last
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal 
 def_word "STATE", "STATE", 0
         lda #<state
         ldy #>state
-        bch lsbw_
+        bra lsbw_
 
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal
 def_word "BASE", "BASE", 0
         lda #<base
         ldy #>base
-        bch lsbw_
+        bra lsbw_
 
 ;----------------------------------------------------------------------
 ; common must

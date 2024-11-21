@@ -382,11 +382,32 @@ def_word "NOOP", "NOOP", 0
 	.word EXIT
 
 ;-----------------------------------------------------------------------
+def_word "USTRING", "USTRING", 0
+        .word EXIT
+
+;-----------------------------------------------------------------------
+def_word "BUBUF", "BUBUF", 0
+        .word EXIT
+
+;-----------------------------------------------------------------------
+def_word "XTIB", "XTIB", 0
+        .word EXIT
+
+;-----------------------------------------------------------------------
+def_word "UMAX", "UMAX", 0
+        .word EXIT
+
+;-----------------------------------------------------------------------
+def_word "UMIN", "UMIN", 0
+        .word EXIT
+
+;-----------------------------------------------------------------------
+;-----------------------------------------------------------------------
 def_word "STREAM", "STREAM", 0
         .word BLK, FETCH, QDUP
-        .word QBRANCH, 6, BLOCK, B/BUF
+        .word QBRANCH, 6, BLOCK, BUBUF
         .word BRANCH, 8, TIB, XTIB, FETCH
-        .word TOIN, FETCH, OVER, UMIN, /STRING 
+        .word TOIN, FETCH, OVER, UMIN, USTRING 
         .word EXIT
 
 ;-----------------------------------------------------------------------

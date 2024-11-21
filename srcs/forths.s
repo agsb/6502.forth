@@ -132,8 +132,9 @@ LENGTH = 32
 
 * = $40 
 
-intreq:        .byte $0
 status:        .byte $0
+irqreq:        .byte $0
+irqjmp:        .word $0
 
 up:     .word $0        ; user pointer
 dp:     .word $0        ; dictionary pointer, mixed header + code
@@ -1439,6 +1440,15 @@ link_: ; next reference
 	release
 
 ;-----------------------------------------------------------------------
+; process a interrupt, could be a pool, void for now
+hang_:
+        inc irqreq
+        lda irqjmp + 0
+        sta wk + 0
+        lda irqjmp + 1
+        sta wk + 1
+
+;-----------------------------------------------------------------------
 jump_:  ; creed, do the jump
         
         ; jsr step_
@@ -1453,12 +1463,6 @@ step_:
         pla
         jmp showord
         
-;-----------------------------------------------------------------------
-; process a interrupt, could be a pool, void for now
-hang_:
-        lda #$C0        ; ????
-        sta intflag
-        jmp look_
 
 ;-----------------------------------------------------------------------
 ;       one byte constants

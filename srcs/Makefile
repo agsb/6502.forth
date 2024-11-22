@@ -42,7 +42,9 @@ clean:
 
 dic:
 	grep "^def_word" $(MY).s |\
-	sed -e 's/[^"]*"//; s/".*//;' |\
-	wc | awk  ' { a = $$2 * 2 + $$3; print a } '
+	sed -e 's/[^"]*"//; s/".*//;' > $(MY).dic  
+
+	cat $(MY).dic | wc | awk  ' { a = $$2 * 2 + $$3; print a } ' |\
+	tee -a $(MY).dic
 
 

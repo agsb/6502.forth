@@ -1,15 +1,6 @@
 
 ; @https://cx16.dk/6502/algorithms.html
 
-; Constants describing the role of each classification bit
-_CTL	EQU $80
-_PRN	EQU $40
-_WSP	EQU $20
-_PCT	EQU $10
-_UPR	EQU $08
-_LWR	EQU $04
-_DGT	EQU $02
-_HEX	EQU $01
 
 ; The lookup table of character descriptions
 ASCIIS:

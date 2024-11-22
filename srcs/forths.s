@@ -329,41 +329,6 @@ def_word "2/", "ASFR", 0
 	release
 
 ;-----------------------------------------------------------------------
-; ( w u -- w << u ) 
-def_word "LSHIFT", "LSHIFT", 0
-        ldy 0, x
-	beq @ends
-@loop:
-	asl 2, x
-        rol 3, x
-        dey
-	bne @loop
-@ends:
-        bra drop_
-
-;-----------------------------------------------------------------------
-; ( w u -- w >> u )) 
-def_word "RSHIFT", "RSHIFT", 0
-        ldy 0, x
-	beq @ends
-@loop:
-	lsr 3, x
-	ror 2, x
-        dey
-	bne @loop
-@ends:
-        bra drop_
-
-;-----------------------------------------------------------------------
-; ( w -- )
-def_word "DROP", "DROP", 0
-drop_:
-        inx
-        inx
-        ;goto next
-	release
-
-;-----------------------------------------------------------------------
 ; ( -- ) R( w -- ) 
 def_word "RDROP", "RDROP", 0
         pla
@@ -372,12 +337,13 @@ def_word "RDROP", "RDROP", 0
 	release
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- w2 ) 
-def_word "NIP", "NIP", 0
+; ( w -- )) R( -- w ) 
+def_word ">R", "TOR", 0
+tor_:
         lda 0, x
-        sta 2, x
+        pha
         lda 1, x
-        sta 3, x
+        pha
         bra drop_
 
 ;-----------------------------------------------------------------------
@@ -414,6 +380,199 @@ def_word "OVER", "OVER", 0
         bra stan1_
 
 ;-----------------------------------------------------------------------
+; ( w u -- w << u ) 
+def_word "LSHIFT", "LSHIFT", 0
+        ldy 0, x
+	beq @ends
+@loop:
+	asl 2, x
+        rol 3, x
+        dey
+	bne @loop
+@ends:
+        bra drop_
+
+;-----------------------------------------------------------------------
+; ( w u -- w >> u )) 
+def_word "RSHIFT", "RSHIFT", 0
+        ldy 0, x
+	beq @ends
+@loop:
+	lsr 3, x
+	ror 2, x
+        dey
+	bne @loop
+@ends:
+        bra drop_
+
+;-----------------------------------------------------------------------
+; ( w -- )
+def_word "DROP", "DROP", 0
+drop_:
+        inx
+        inx
+        ;goto next
+	release
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- w2 ) 
+def_word "NIP", "NIP", 0
+        lda 0, x
+        sta 2, x
+        lda 1, x
+        sta 3, x
+        bra drop_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- w1 OR w2 ) 
+def_word "OR", "ORT", 0
+        lda 2, x
+        ora 0, x
+        sta 2, x
+        lda 3, x
+        ora 1, x
+        bra stan3_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- w1 XOR w2 ) 
+def_word "XOR", "XORT", 0
+        lda 2, x
+        eor 0, x
+        sta 2, x
+        lda 3, x
+        eor 1, x
+        bra stan3_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- w1 + w2 ) 
+def_word "+", "PLUS", 0
+        clc
+        lda 2, x
+        adc 0, x
+        sta 2, x
+        lda 3, x
+        adc 1, x
+        bra stan3_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- w2 - w1 ) 
+def_word "-", "MINUS", 0
+        sec
+        lda 2, x
+        sbc 0, x
+        sta 2, x
+        lda 3, x
+        sbc 1, x
+        bra stan3_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- w1 AND w2 ) 
+def_word "AND", "ANDT", 0
+        lda 2, x
+        and 0, x
+        sta 2, x
+        lda 3, x
+        and 1, x
+stan3_:        
+        sta 3, x
+        inx
+        inx
+        ;goto next
+	release
+
+;-----------------------------------------------------------------------
+; ( d -- FALSE | TRUE ) 
+def_word "D0=", "DZEQ", 0
+        lda 2, x
+        bne nfalse
+        lda 3, x
+        bne nfalse
+        lda 0, x
+        bne nfalse
+        lda 1, x
+        bne nfalse
+        bra ntrue
+
+;-----------------------------------------------------------------------
+; ( w -- w == 0 ) 
+def_word "0=", "ZEQ", 0
+        lda 0, x
+        ora 1, x
+        bne nfalse
+        beq ntrue
+
+;-----------------------------------------------------------------------
+; ( w -- w < 0 ) 
+def_word "0<", "ZLT", 0
+        lda 1, x
+        asl
+        bcc nfalse
+        bcs ntrue
+
+;-----------------------------------------------------------------------
+; ( -- $0000 ) 
+def_word "FALSE", "FFALSE", 0
+        dex
+        dex
+nfalse:
+        lda #$00
+        sta 2, x
+        bra stan3_
+
+;-----------------------------------------------------------------------
+; ( -- $FFFF ) 
+def_word "TRUE", "TTRUE", 0
+        dex
+        dex
+ntrue:
+        lda #$FF
+        sta 2, x
+        bra stan3_
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- w1 < w2 )   
+def_word "U<", "ULT", 0
+        lda 3, x
+        cmp 1, x
+        bmi fends
+        lda 2, x
+        cmp 0, x
+fends:
+        inx
+        inx
+        bcc nfalse
+        bcs ntrue
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- w1 == w2 ) 
+def_word "=", "EQ", 0
+        clc
+        lda 0, x
+        eor 2, x
+        bne fends
+        lda 1, x
+        eor 3, x
+        bne fends
+        sec
+        bra fends
+
+;-----------------------------------------------------------------------
+; ( d1 d2 -- d1 < d2 ) 
+def_word "D<", "DLTH", 0
+        lda 5, x
+        cmp 1, x
+        bmi fends
+        lda 4, x
+        cmp 0, x
+        bmi fends
+        lda 7, x
+        cmp 3, x
+        bmi fends
+        lda 6, x
+        cmp 2, x
+        bra fends
+
+;-----------------------------------------------------------------------
 ; ( -- w ) R( w -- w )  
 def_word "R@", "RAT", 0
         stx wk
@@ -425,16 +584,6 @@ def_word "R@", "RAT", 0
         ldx wk
         bra push_
         
-;-----------------------------------------------------------------------
-; ( w -- )) R( -- w ) 
-def_word ">R", "TOR", 0
-tor_:
-        lda 0, x
-        pha
-        lda 1, x
-        pha
-        bra drop_
-
 ;-----------------------------------------------------------------------
 ; ( -- w ) R( w -- ) 
 def_word "R>", "RTO", 0
@@ -494,83 +643,6 @@ def_word "-ROT", "BROT", 0
         bra putw_
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- w1 AND w2 ) 
-def_word "AND", "ANDT", 0
-        lda 2, x
-        and 0, x
-        sta 2, x
-        lda 3, x
-        and 1, x
-stan3_:        
-        sta 3, x
-        inx
-        inx
-        ;goto next
-	release
-
-;-----------------------------------------------------------------------
-; ( w1 w2 -- w1 OR w2 ) 
-def_word "OR", "ORT", 0
-        lda 2, x
-        ora 0, x
-        sta 2, x
-        lda 3, x
-        ora 1, x
-        bra stan3_
-
-;-----------------------------------------------------------------------
-; ( w1 w2 -- w1 XOR w2 ) 
-def_word "XOR", "XORT", 0
-        lda 2, x
-        eor 0, x
-        sta 2, x
-        lda 3, x
-        eor 1, x
-        bra stan3_
-
-;-----------------------------------------------------------------------
-; ( w1 w2 -- w1 + w2 ) 
-def_word "+", "PLUS", 0
-        clc
-        lda 2, x
-        adc 0, x
-        sta 2, x
-        lda 3, x
-        adc 1, x
-        bra stan3_
-
-;-----------------------------------------------------------------------
-; ( w1 w2 -- w2 - w1 ) 
-def_word "-", "MINUS", 0
-        sec
-        lda 2, x
-        sbc 0, x
-        sta 2, x
-        lda 3, x
-        sbc 1, x
-        bra stan3_
-
-;-----------------------------------------------------------------------
-; ( d -- FALSE | TRUE ) 
-def_word "D0=", "DZEQ", 0
-        lda 2, x
-        bne nfalse
-        lda 3, x
-        bne nfalse
-        lda 0, x
-        bne nfalse
-        lda 1, x
-        bne nfalse
-ntrue:
-        lda #$FF
-        sta 2, x
-        .byte $2c
-nfalse:
-        lda #$00
-        sta 2, x
-        bra stan3_
-
-;-----------------------------------------------------------------------
 ; ( d1 d2 -- d1 + d2 ) 
 def_word "D+", "DPLUS", 0
         clc
@@ -604,96 +676,13 @@ def_word "D-", "DMINUS", 0
         sbc 5, x
 stan5_:
         sta 5, x
-drop2:
+drop2_:
         inx
         inx
         inx
         inx
         ; goto next
         release
-
-;-----------------------------------------------------------------------
-; ( d1 d2 -- d1 < d2 ) 
-def_word "D<", "DLTH", 0
-        lda 5, x
-        cmp 1, x
-        bmi nfalse
-        lda 4, x
-        cmp 0, x
-        bmi nfalse
-        lda 7, x
-        cmp 3, x
-        bmi nfalse
-        lda 6, x
-        cmp 2, x
-        bmi nfalse
-        bra ntrue
-
-;-----------------------------------------------------------------------
-; ( -- $0000 ) 
-def_word "FALSE", "FFALSE", 0
-        dex
-        dex
-false2:
-        lda #$00    ; false
-same2_:
-        sta 0, x
-        sta 1, x
-        ;goto next
-	release
-
-;-----------------------------------------------------------------------
-; ( -- $FFFF ) 
-def_word "TRUE", "TTRUE", 0
-        dex
-        dex
-true2:
-        lda #$FF    ; true
-        bne same2_
-
-; zzzz
-;-----------------------------------------------------------------------
-; ( w -- w == 0 ) 
-def_word "0=", "ZEQ", 0
-        lda 0, x
-        ora 1, x
-        bne false2
-        beq true2
-
-;-----------------------------------------------------------------------
-; ( w -- w < 0 ) 
-def_word "0<", "ZLT", 0
-        lda 1, x
-        asl
-        bcc false2
-        bcs true2
-
-;-----------------------------------------------------------------------
-; ( w1 w2 -- w1 < w2 )   
-def_word "U<", "ULT", 0
-        lda 3, x
-        cmp 1, x
-        bmi fends
-        lda 2, x
-        cmp 0, x
-fends:
-        inx
-        inx
-        bcc false2
-        bcs true2
-
-;-----------------------------------------------------------------------
-; ( w1 w2 -- w1 == w2 ) 
-def_word "=", "EQ", 0
-        clc
-        lda 0, x
-        eor 2, x
-        bne fends
-        lda 1, x
-        eor 3, x
-        bne fends
-        sec
-        bra fends
 
 ;-----------------------------------------------------------------------
 ; ( c a -- ) *a = 0x00FF AND c
@@ -714,17 +703,7 @@ def_word "!", "STORE", 0
         lda 3, x
 stow_:
         sta (0, x)
-        
-        bra drop2
-
-ndrop2:
-        inx
-        inx
-ndrop1:
-        inx
-        inx
-        ;goto next
-	release
+        bra drop2_
 
 ;-----------------------------------------------------------------------
 ; (( a w -- ))  
@@ -831,13 +810,13 @@ def_word "ALIGN", "ALIGN", 0
 ; ( w -- $0000 - w1 ) 
 def_word "NEGATE", "NEGATE", 0
         lda #$00
-        beq cpts_
+        beq complement_
 
 ;-----------------------------------------------------------------------
 ; ( w1 -- $FFFF - w1 ) 
 def_word "INVERT", "INVERT", 0
         lda #$FF
-cpts_:
+complement_:
         sec
         pha
         sbc 0, x
@@ -958,6 +937,7 @@ bran_:
         iny
         lda (ip), y
         sta wk + 1
+offset_:
         clc
         lda ip + 0
         adc wk + 0
@@ -1053,7 +1033,7 @@ cmove_:
         jsr ds2ws_
         ; ldy #0
 @loop:
-        ; copy
+        ; copy bytes
         lda (six), y
         sta (two), y
         ; decrement counter
@@ -1132,7 +1112,7 @@ def_word "??", "NUMBER", 0
         sty 0, x
         sty 1, x
 
-	jsr @gethex
+	jsr gethex
         bmi @erro
 	asl
 	asl
@@ -1140,12 +1120,12 @@ def_word "??", "NUMBER", 0
 	asl
 	sta 1, x
 
-	jsr @gethex
+	jsr gethex
         bmi @erro
 	ora 1, x
 	sta 1, x
 	
-	jsr @gethex
+	jsr gethex
         bmi @erro
 	asl
 	asl
@@ -1153,7 +1133,7 @@ def_word "??", "NUMBER", 0
 	asl
 	sta 0, x
 
-	jsr @gethex
+	jsr gethex
         bmi @erro
         ora 0, x
 	sta 0, x
@@ -1163,10 +1143,13 @@ def_word "??", "NUMBER", 0
         release
 
 @erro:
-        ; what todo ?
-        bmi @valid
+        ; what todo 
+        bra @valid
 
-@gethex:
+;----------------------------------------------------------------------
+; converts a byte value to hexadecimal
+;       00 to 0F valid, $FF error
+gethex:
         ; control ?
 	sec
 	sbc #' '	; test < ' '
@@ -1248,7 +1231,7 @@ getascii:
 
 ;----------------------------------------------------------------------
 ; ( a n -- a n ) NOT STANDART, for use  
-def_word "UPPERCASE", "UPPERCASE", 0
+def_word "UPPER", "UPPER", 0
         lda #2
         jsr ds2ws_
 @loop:
@@ -1458,7 +1441,6 @@ step_:
         pla
         jmp showord
         
-
 ;-----------------------------------------------------------------------
 ;       one byte constants
 ;-----------------------------------------------------------------------
@@ -1624,7 +1606,7 @@ lsbw_:
 def_word "SP!", "TOSP", 0
         ; return hardwired S0
         lda #$FF
-        ldy #$00
+        ; ldy #$00
         bra lsbw_
 
 ;-----------------------------------------------------------------------
@@ -1632,7 +1614,8 @@ def_word "SP!", "TOSP", 0
 def_word "RP!", "TORP", 0
         ; return hardwired R0
         lda #$FF
-        ldy #$01
+        ; ldy #$01
+        iny
         bra lsbw_
 
 ;-----------------------------------------------------------------------
@@ -1640,8 +1623,11 @@ def_word "RP!", "TORP", 0
 ; must hold at least 84 chars, but 72 is enough
 def_word "TIB", "TIB", 0
         ; return hardwire T0
-        lda #$00
-        ldy #$02
+        ; lda #$00
+        tya
+        ; ldy #$02
+        iny
+        iny
         bra lsbw_
 
 ;-----------------------------------------------------------------------
@@ -1681,7 +1667,8 @@ def_word "BASE", "BASE", 0
         bra lsbw_
 
 ;----------------------------------------------------------------------
-; common must
+;
+; common
 ;
 ;-----------------------------------------------------------------------
 ; (( -- w ))  reference of forth internal
@@ -1719,13 +1706,13 @@ warm:
         lda #>next_
         sta void + 1
 
-; link list of headers
-        lda #<NULL
+; link list of headers, NOOP must be the last compiled word
+        lda #<NOOP
         sta last + 0
-        lda #>NULL
+        lda #>NOOP
         sta last + 1
 
-; next heap free cell, at 256-page:
+; next heap free cell
         lda #<end_of_forth
         sta dp + 0
         lda #>end_of_forth
@@ -1747,11 +1734,21 @@ end_of_native:  ;       end of primitives:
         nop
         nop
 
+;-----------------------------------------------------------------------
+;
+; start of pre-compiled dictionary
+;
 .include "words.s"
 
+;-----------------------------------------------------------------------
+; (( w1 -- w1 ))     
+def_word "NOOP", "NOOP", 0
+	.word EXIT
+
+;----------------------------------------------------------------------
 end_of_forth:
-        nop
-        nop
+
+.byte $DE, $AD, $C0, $DE
 
 ;----------------------------------------------------------------------
 .end

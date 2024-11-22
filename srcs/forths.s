@@ -66,6 +66,17 @@
         jmp (void)
 .endmacro
 
+
+;-----------------------------------------------------------------------
+.if 0
+
+        comments
+
+.endif
+;-----------------------------------------------------------------------
+
+
+
 ;-----------------------------------------------------------------------
 ; headers 
 ; the entry point for dictionary is h_~name~
@@ -96,21 +107,17 @@ H0000 = 0
 ;-----------------------------------------------------------------------
 ;    constants
 
-FALSE = 0
-
-TRUE = -1
-
-; cell size, two bytes, 16-bit
-CELL = 2
-
-; forth TIB terminal input area
-TERMINAL  = $50 + 4
+;-----------------------------------------------------------------------
+.if 0
 
 ; highlander, reserved flag.
-; FLAG_RSV = 1<<5
+FLAG_RSV = 1<<5
 
 ; highlander, restrict for compiler flag.
-; FLAG_CPL = 1<<6
+FLAG_CPL = 1<<6
+
+.endif
+;-----------------------------------------------------------------------
 
 ; highlander, immediate flag.
 FLAG_IMM = 1<<7
@@ -119,6 +126,16 @@ IMMEDIATE = FLAG_IMM
 
 ; maximum length of words
 LENGTH = 32
+
+; cell size, two bytes, 16-bit
+CELL = 2
+
+; forth TIB terminal input area
+TERMINAL  = $50 + 4
+
+FALSE = 0
+
+TRUE = -1
 
 ;-----------------------------------------------------------------------
 ; For use of 6502.toy, reserved for bios
@@ -132,16 +149,20 @@ LENGTH = 32
 
 * = $40 
 
+; depends on BIOS, define later
+
 status:        .byte $0
 irqreq:        .byte $0
 irqjmp:        .word $0
+
+; forth variables
 
 up:     .word $0        ; user pointer
 dp:     .word $0        ; dictionary pointer, mixed header + code
 ip:     .word $0        ; instruction pointer
 wk:     .word $0        ; fixed above np
 
-; extra dummies, 
+; extra dummies
 np:     .res 8
 
 ; alias
@@ -290,46 +311,20 @@ def_word "RSFR", "RSFR", 0
 	release
 
 ;-----------------------------------------------------------------------
-; ( w -- w << 1 ) arithmetic right, sign keep, C -> b7, b0 -> C
-def_word "2/", "ASFR", 0
-        ; get sign bit
-        jsr getsign_
-        ; rolls
-        ror 1, x
-        ror 0, x
-        ; put sign bit
-        bra putsign_
-
-;-----------------------------------------------------------------------
 ; ( w -- w << 1 ) arithmetic left, sign keep, 0 -> b0, b7 -> C
 def_word "2*", "ASFL", 0
-        ; get sign bit
-        jsr getsign_
-        ; rolls
-        rol 0, x
+        asl 0, x
         rol 1, x
-        ; put sign bit
-        bra putsign_
-
-;-----------------------------------------------------------------------
-getsign_:
-        lda 1, x
-        tay
-        ora #$7F
-        sta 1, x
-        clc
-        rts
-
-putsign_:
-        tya
-        bmi setsign_
         ;goto next
 	release
 
-setsign_:
-        lda #$80
-        ora 1, x
-        sta 1, x
+;-----------------------------------------------------------------------
+; ( w -- w >> 1 ) arithmetic right, sign keep, C -> b7, b0 -> C
+def_word "2/", "ASFR", 0
+        lda 1, x
+        asl
+        ror 1, x
+        ror 0, x
         ;goto next
 	release
 
@@ -383,10 +378,7 @@ def_word "NIP", "NIP", 0
         sta 2, x
         lda 1, x
         sta 3, x
-        inx
-        inx
-        ;goto next
-	release
+        bra drop_
 
 ;-----------------------------------------------------------------------
 ; (( w -- w | w w )) 
@@ -559,7 +551,7 @@ def_word "-", "MINUS", 0
         bra stan3_
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- == 0 ) 
+; ( d -- FALSE | TRUE ) 
 def_word "D0=", "DZEQ", 0
         lda 2, x
         bne nfalse
@@ -579,7 +571,7 @@ nfalse:
         bra stan3_
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 w3 w4 -- (w1 w2 + w3 w4) )) 
+; ( d1 d2 -- d1 + d2 ) 
 def_word "D+", "DPLUS", 0
         clc
         lda 2, x
@@ -596,7 +588,7 @@ def_word "D+", "DPLUS", 0
         bra stan5_
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 w3 w4 -- (w1 w2 - w3 w4) ) 
+; ( d1 d2 -- d2 - d1 ) 
 def_word "D-", "DMINUS", 0
         sec
         lda 2, x
@@ -621,7 +613,7 @@ drop2:
         release
 
 ;-----------------------------------------------------------------------
-; (( w1 w2 w3 w4 -- (w1 w2 < w3 w4) )) 
+; ( d1 d2 -- d1 < d2 ) 
 def_word "D<", "DLTH", 0
         lda 5, x
         cmp 1, x
@@ -636,7 +628,6 @@ def_word "D<", "DLTH", 0
         cmp 2, x
         bmi nfalse
         bra ntrue
-
 
 ;-----------------------------------------------------------------------
 ; ( -- $0000 ) 
@@ -660,11 +651,12 @@ true2:
         lda #$FF    ; true
         bne same2_
 
+; zzzz
 ;-----------------------------------------------------------------------
 ; ( w -- w == 0 ) 
 def_word "0=", "ZEQ", 0
         lda 0, x
-        eor 1, x
+        ora 1, x
         bne false2
         beq true2
 
@@ -722,6 +714,9 @@ def_word "!", "STORE", 0
         lda 3, x
 stow_:
         sta (0, x)
+        
+        bra drop2
+
 ndrop2:
         inx
         inx
@@ -1258,11 +1253,11 @@ def_word "UPPERCASE", "UPPERCASE", 0
         jsr ds2ws_
 @loop:
         lda (two), y
-        cmp #'a'
+        cmp #'a' + 0
         bmi @ends
-        cmp #'{'
+        cmp #'z' + 1
         bpl @ends
-        and #$20
+        and #$DF
         sta (two), y
 @ends:
         iny
@@ -1396,8 +1391,8 @@ unnest_:  ; pull from return stack, aka semis
 ;-----------------------------------------------------------------------
 next_:  
         ; http://wilsonminesco.com/0-overhead_Forth_interrupts/
-        ; do interrupts, if irqnot is zero else is one
-        ldy intreq
+        ; if irqreq is zero, do interrupts; else irqreq must be 1
+        ldy irqreq
         beq hang_
 
 ;-----------------------------------------------------------------------

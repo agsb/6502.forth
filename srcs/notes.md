@@ -85,7 +85,15 @@
 ;	
 ;       Why another Forth? To learn how to.
 ;
-;       for use in the 6502.toy SBC
+;       for use in the 65C02.toy SBC
+;
+;   order in stack:
+;
+;       as words order, lsb 0 1 msb
+;
+;       as double, order TOS lsb 2 3 0 1 msb // NOS lsb 6 7 4 5 msb
+;
+;       as multibyte, count 0 1 lsb 2 3 4 5 6 7 8 9 msb etc
 ;
 ;-----------------------------------------------------------------------
 ;
@@ -124,10 +132,6 @@
 ;       Forth 2012, Standart.
 ;
 ; Sorry. Warning.
-;
-; I'm using double parentheses as comments of stacks elements
-; to indicate the top of the is stack is at left, thus,
-; it is ever the last element pushed into stack.
 ;
 ; Why ? Makes easy counts of cells and offsets.
 ;

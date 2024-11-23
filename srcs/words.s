@@ -107,6 +107,28 @@ def_word "-2ROT", "DBROT", 0
 	.word EXIT
 
 ;-----------------------------------------------------------------------
+;
+;-----------------------------------------------------------------------
+; ( xt -- exception# | 0 \ return addr on stack,  as Forth-2012
+def_word "CATCH", "CATCH", 0
+        .word SPAT, TOR, HANDLER, FETCH, TOR
+	.word RPAT, HANDLER, STORE
+	.word EXECUTE
+	.word RTO, HANDLER, STORE
+	.word RTO, DROP, ZERO
+	.word EXIT
+ 
+;-----------------------------------------------------------------------
+; ( ??? exception# -- ??? exception# ),  as Forth-2012
+def_word "THROW", "THROW", 0
+	.word QDUP, QBRANCH, 13
+	.word HANDLER, FETCH, RPTO
+	.word RTO, HANDLER, STORE
+	.word RTO, SWAP, TOR
+	.word SPTO, DROP, RTO
+	.word EXIT
+
+;-----------------------------------------------------------------------
 ; dictionary stuff
 ;-----------------------------------------------------------------------
 
@@ -163,6 +185,27 @@ def_word "POSTPONE", "POSTPONE", IMMEDIATE
         .word TICK, COMMA
 	.word EXIT
 
+.if 0
+
+; https://stackoverflow.com/questions/31636929/\
+; how-to-properly-implement-postpone-in-a-forth-system
+; https://github.com/ForthHub/discussion/discussions/105
+
+: state-on  ( -- )  1 state ! ;
+: state-off ( -- )  0 state ! ;
+
+: execute-compiling ( i*x xt --j*x )
+  state @ if  execute  exit  then
+  state-on  execute  state-off
+  ;
+ 
+: postpone ( "name" -- )
+  bl word find dup 0= -13 and throw 1 = ( xt flag-special )
+  swap lit, if ['] execute-compiling else ['] compile, then compile,
+  ; immediate
+
+.endif 
+
 ;----------------------------------------------------------------------
 ; ( -- )  state mode compile
 def_word "[", "LBRAC", 0
@@ -178,13 +221,11 @@ def_word "]", "RBRAC", 0
 ;-----------------------------------------------------------------------
 ; (( -- ))    find a word in dictionary, return CFA or FALSE (0x0))  
 def_word "FINDF", "FINDF", 0
-        .word DROP
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; (( -- ))    find a word in dictionary, return CFA or FALSE (0x0))  
 def_word "PFIND", "PFIND", 0
-        .word DROP
 	.word EXIT
 
 ;----------------------------------------------------------------------

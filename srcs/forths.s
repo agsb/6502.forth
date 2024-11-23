@@ -1603,7 +1603,7 @@ lsbw_:
 
 ;-----------------------------------------------------------------------
 ; (( -- ))  used to reset S0
-def_word "SP!", "TOSP", 0
+def_word "SP!", "SPTO", 0
         ; return hardwired S0
         lda #$FF
         ; ldy #$00
@@ -1611,7 +1611,7 @@ def_word "SP!", "TOSP", 0
 
 ;-----------------------------------------------------------------------
 ; (( -- ))  used to reset R0
-def_word "RP!", "TORP", 0
+def_word "RP!", "RPTO", 0
         ; return hardwired R0
         lda #$FF
         ; ldy #$01

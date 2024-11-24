@@ -11,11 +11,19 @@
 
 : 2 1 1 + ;
 
-: cell 2;
+: cell 2 ;
 
 : 4 2 2 + ;
 : 6 2 4 + ;
 : 8 4 4 + ;
+: 10 4 6 + ;
+
+
+: sp S 2 + ;
+: rp S 4 + ;
+: ip S 6 + ;
+: state S 8 + ;
+: latest S 10 + ;
 
 : drop sp@ ! ;
 : dup  sp@ @ ;

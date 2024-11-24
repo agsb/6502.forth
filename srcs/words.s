@@ -257,18 +257,20 @@ def_word "ACCEPT", "ACCEPT", 0
         .word EXIT
 
 ;----------------------------------------------------------------------
-; ( -- )  compile a word
+; ( -- )  compile a word, zzzz
 def_word ":", "COLON", 0
 	.word HERE, LAST, STORE
-	.word LATEST, FETCH, COMMA
-        .word CREATE, RBRAC
+        .word CURRENT, FETCH, CONTEXT, STORE
+        .word CREATE, LATEST, TRUE, OVER, 
+        .word RBRAC
         .word EXIT
 
 ;----------------------------------------------------------------------
-; ( -- )  ends a compile word
+; ( -- )  ends a compile word, zzzz
 def_word ";", "SEMIS", 0
-	.word DOCON, EXIT, COMMA
-        .word LAST, FETCH, LATEST, STORE, LBRAC
+	.word LIT, EXIT, COMMA
+        .word LAST, FETCH, LATEST, STORE, 
+        .word LBRAC
         .word EXIT
 
 ;-----------------------------------------------------------------------

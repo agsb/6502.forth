@@ -144,7 +144,7 @@ def_word "VARIABLE", "VARIABLE", IMMEDIATE
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; ( w -- )      
+; ( w -- )     
 def_word "CONSTANT", "CONSTANT", IMMEDIATE
         .word CREATE, LIT, DOCON, COMMA, COMMA
 	.word EXIT
@@ -181,7 +181,7 @@ def_word "'", "TICK", 0
 
 ;-----------------------------------------------------------------------
 ; ( -- )   easy way 
-def_word "POSTPONE", "POSTPONE", IMMEDIATE
+def_word "COMPILE!", "COMPILE!", IMMEDIATE
         .word TICK, COMMA
 	.word EXIT
 

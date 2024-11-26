@@ -56,7 +56,7 @@ def_word "2@", "DAT", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 --  )     
 def_word "2!", "DTO", 0
-        .word SWAP, OVER, STORE, CELL, PLUS, STORE
+        .word SWAP, OVER, TO, CELL, PLUS, TO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
@@ -119,9 +119,9 @@ def_word "-2ROT", "DBROT", 0
 ; ( xt -- exception# | 0 \ return addr on stack,  as Forth-2012
 def_word "CATCH", "CATCH", 0
         .word SPAT, TOR, HANDLER, FETCH, TOR
-	.word RPAT, HANDLER, STORE
+	.word RPAT, HANDLER, TO
 	.word EXECUTE
-	.word RTO, HANDLER, STORE
+	.word RTO, HANDLER, TO
 	.word RTO, DROP, ZERO
 	.word EXIT
  
@@ -130,7 +130,7 @@ def_word "CATCH", "CATCH", 0
 def_word "THROW", "THROW", 0
 	.word QDUP, QBRANCH, 13
 	.word HANDLER, FETCH, RPTO
-	.word RTO, HANDLER, STORE
+	.word RTO, HANDLER, TO
 	.word RTO, SWAP, TOR
 	.word SPTO, DROP, RTO
 	.word EXIT
@@ -171,14 +171,24 @@ def_word "ALLOT", "ALLOT", 0
 ;-----------------------------------------------------------------------
 ; ( c -- )   
 def_word "C,", "CCOMMA", 0
-        .word HERE, CSTORE, ONE, ALLOT
+        .word HERE, CTO, ONE, ALLOT
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )   
 def_word ",", "COMMA", 0
-        .word HERE, STORE, TWO, ALLOT
+        .word HERE, TO, TWO, ALLOT
 	.word EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )   
+def_word "SOURCE", "SOURCE", 0
+        .word BLK, AT, QDUP
+        .word QBRANCH, 10
+        .word BLOCK, BVBUF
+        .word BRANCH, 08
+        .word TIB, TIBZ, AT
+        .word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )   
@@ -216,13 +226,13 @@ def_word "COMPILE!", "COMPILE!", IMMEDIATE
 ;----------------------------------------------------------------------
 ; ( -- )  state mode compile
 def_word "[", "LBRAC", 0
-        .word ZERO, STATE, STORE
+        .word ZERO, STATE, TO
 	.word EXIT
 
 ;----------------------------------------------------------------------
 ; ( -- )  state mode interprete
 def_word "]", "RBRAC", 0
-        .word ONE, STATE, STORE
+        .word ONE, STATE, TO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
@@ -244,9 +254,9 @@ def_word "WORD", "WORD", 0
         .word TOIN, FETCH, PLUS, SWAP, ENCLOSE
         .word TOIN, PLUSTO, MINUS, TOR
         ; header
-        .word HERE, LAST, STORE
+        .word HERE, LAST, TO
         .word LATEST, COMMA 
-        .word RAT, HERE, CSTORE
+        .word RAT, HERE, CTO
         .word HERE, ONEPLUS, RTO
         .word CMOVE
 	.word EXIT
@@ -266,8 +276,8 @@ def_word "ACCEPT", "ACCEPT", 0
 ;----------------------------------------------------------------------
 ; ( -- )  compile a word, zzzz
 def_word ":", "COLON", 0
-	.word HERE, LAST, STORE
-        .word CURRENT, FETCH, CONTEXT, STORE
+	.word HERE, LAST, TO
+        .word CURRENT, FETCH, CONTEXT, TO
         .word CREATE, LATEST, TRUE, OVER, 
         .word RBRAC
         .word EXIT
@@ -276,7 +286,7 @@ def_word ":", "COLON", 0
 ; ( -- )  ends a compile word, zzzz
 def_word ";", "SEMIS", 0
 	.word LIT, EXIT, COMMA
-        .word LAST, FETCH, LATEST, STORE, 
+        .word LAST, FETCH, LATEST, TO, 
         .word LBRAC
         .word EXIT
 
@@ -328,7 +338,7 @@ def_word "IF", "IF", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; (( -- ))     
 def_word "THEN", "THEN", IMMEDIATE
-        .word HERE, OVER, MINUS, SWAP, STORE
+        .word HERE, OVER, MINUS, SWAP, TO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
@@ -361,7 +371,7 @@ def_word "WHILE", "WHILE", IMMEDIATE
 ; (( -- ))     
 def_word "REPEAT", "REPEAT", IMMEDIATE
         .word LIT, AGAIN, COMMA
-        .word HERE, SWAP, STORE
+        .word HERE, SWAP, TO
 	.word EXIT 
 
 ;-----------------------------------------------------------------------

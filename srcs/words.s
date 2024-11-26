@@ -20,6 +20,13 @@ def_word ">", "GTH", 0
 
 ;-----------------------------------------------------------------------
 ; ( w --  w + CELL )     
+def_word "CELL-", "CELLMINUS", 0
+        ; cells is two 
+        .word TWOMINUS
+	.word EXIT
+
+;-----------------------------------------------------------------------
+; ( w --  w + CELL )     
 def_word "CELL+", "CELLPLUS", 0
         ; cells is two 
         .word TWOPLUS

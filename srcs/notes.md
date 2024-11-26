@@ -1,5 +1,15 @@
 ## notes 
 
+26/11/2024
+
+    Review of functions in lowercase and words in uppercase
+    Going for a internal REPL 
+    split forth.s into 
+
+        minimal.s (with minimal core), 
+        native.s (core words in native code),
+        compiled.s (core words in compiled code)
+
 21/11/2024
 
     Using ideas from 6502.org forum "Fleet Forth design considerations"
@@ -64,17 +74,11 @@
 
 ;-----------------------------------------------------------------------
 ;
-;	A((nother)) Forth for 6502 with
-;	data stack in page zero,
-;	return stack in page one
-;	and using minimal thread code
-;	eForth and Fig-Forth, alike.
+;	A((nother)) Forth for 65C02 with
+;	data stack in page zero, return stack in page one
+;	and using minimal thread code, 
 ;	
-;	uses X as data stack index, 
-;       Y as keeped zero 
-;	
-;	((still)) non-rellocable code, 
-;	((still)) non-optimized code,
+;   Inspired on eForth and Fig-Forth, alike R65F11.
 ;	
 ;	FALSE is $0000 (0)) TRUE is $FFFF ((-1))
 ;
@@ -97,6 +101,25 @@
 ;
 ;-----------------------------------------------------------------------
 ;
+; ABOUT Coding
+;
+;       It's for a SBC toy, no strict ANSI Forth.
+;	    
+;       BIOS loads into SRAM and jumps to $1000.
+;
+;       Non multitask, non multiuser and non-vocabulary Forth.
+;
+;       Non-rellocable, non self-modified and non-optimized code.
+;
+;	    uses X as data stack index, SP as return stack index,
+;           A is generic and Y as keeped zero at next.
+;	
+;       internal functions are lowercase, words are uppercase.
+;
+;       Code must flow.
+;
+;-----------------------------------------------------------------------
+;
 ; ABOUT Minimal Thread Code
 ;
 ;	1. Mixed header and code dictionary, no need CFA
@@ -105,7 +128,7 @@
 ;	
 ;       header:
 ;               link:   .word
-;               byte:   .size_flag
+;               byte:   .lenght+flags
 ;               name:   .byte * lenght
 ;       code:   
 ;               all bytes following name
@@ -132,6 +155,8 @@
 ;       Forth 2012, Standart.
 ;
 ; Sorry. Warning.
+;   
+;   Any double comments (( -- )) shows stack order from left to right.
 ;
 ; Why ? Makes easy counts of cells and offsets.
 ;

@@ -469,42 +469,9 @@ def_word "STREAM", "STREAM", 0
 erro1:  .asciiz "unmatched DEFER"
 
 ;-----------------------------------------------------------------------
-end_of_compiled:
-;-----------------------------------------------------------------------
+; (( w1 -- w1 ))     
+def_word "NOOP", "NOOP", 0
+	.word EXIT
 
-.ifdef none
-;-----------------------------------------------------------------------
-;       controls alike 
-;-----------------------------------------------------------------------
+;----------------------------------------------------------------------
 
-;def_word ">MARK", "TOMARK", 0
-;        .word HERE, ZERO, COMMA
-;        .word EXIT
-
-;def_word "<MARK", "ATMARK", 0
-;        .word HERE
-;        .word EXIT
-
-;def_word ">RESOLVE", "TORESOLVE", 0
-;        .word HERE, SWAP, COMMA
-;        .word EXIT
-
-;def_word "<RESOLVE", "TORESOLVE", 0
-;        .word COMMA
-;        .word EXIT
-
-;: >MARK ( -- addr) here 0 , ;
-;: <MARK ( -- addr) here ;
-;: >RESOLVE ( addr -- ) here swap (forth) ! ;
-;: <RESOLVE ( -- addr) , ;
-
-;: IF ( flag -- ) COMPILE (?BRANCH) >MARK ; immediate
-;: ELSE ( -- ) COMPILE (BRANCH) >MARK swap >RESOLVE ; immediate
-;: THEN ( -- ) >RESOLVE ; immediate
-;: BEGIN ( -- ) <MARK ; immediate
-;: UNTIL ( flag -- ) COMPILE (?BRANCH) <RESOLVE ; immediate
-;: AGAIN ( flag -- ) COMPILE (BRANCH)  <RESOLVE ; immediate
-;: WHILE ( flag -- ) COMPILE (?BRANCH) >MARK ; immediate
-;: REPEAT ( -- ) COMPILE (BRANCH) swap <RESOLVE >RESOLVE ; immediate
-
-.endif

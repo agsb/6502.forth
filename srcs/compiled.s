@@ -2,8 +2,6 @@
 ;-----------------------------------------------------------------------
 ;   COMPILED WORDS
 ;-----------------------------------------------------------------------
-init_of_compiled:
-
 ;-----------------------------------------------------------------------
 ;       core stuff
 ;-----------------------------------------------------------------------
@@ -50,7 +48,7 @@ def_word "TUCK", "TUCK", 0
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w1 w2 )     
 def_word "2@", "DAT", 0
-        .word DUP, CELL, PLUS, FETCH, SWAP, FETCH
+        .word DUP, CELL, PLUS, AT, SWAP, AT
 	.word EXIT
 
 ;-----------------------------------------------------------------------
@@ -114,11 +112,17 @@ def_word "-2ROT", "DBROT", 0
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-;
+;       exception stuff
+;-----------------------------------------------------------------------
 ;-----------------------------------------------------------------------
 ; ( xt -- exception# | 0 \ return addr on stack,  as Forth-2012
+def_word "HANDLER", "HANDLER", 0
+        .word DOVAR, $0
+        .word EXIT
+
+; ( xt -- exception# | 0 \ return addr on stack,  as Forth-2012
 def_word "CATCH", "CATCH", 0
-        .word SPAT, TOR, HANDLER, FETCH, TOR
+        .word SPAT, TOR, HANDLER, AT, TOR
 	.word RPAT, HANDLER, TO
 	.word EXECUTE
 	.word RTO, HANDLER, TO
@@ -129,14 +133,14 @@ def_word "CATCH", "CATCH", 0
 ; ( ??? exception# -- ??? exception# ),  as Forth-2012
 def_word "THROW", "THROW", 0
 	.word QDUP, QBRANCH, 13
-	.word HANDLER, FETCH, RPTO
+	.word HANDLER, AT, RPTO
 	.word RTO, HANDLER, TO
 	.word RTO, SWAP, TOR
 	.word SPTO, DROP, RTO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
-; dictionary stuff
+;       dictionary stuff
 ;-----------------------------------------------------------------------
 
 ; ( -- w )      ; zzzz
@@ -159,7 +163,7 @@ def_word "CONSTANT", "CONSTANT", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; ( -- a )      
 def_word "HERE", "HERE", 0
-        .word DP, FETCH
+        .word DP, AT
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
@@ -182,12 +186,23 @@ def_word ",", "COMMA", 0
 
 ;-----------------------------------------------------------------------
 ; ( -- )   
-def_word "SOURCE", "SOURCE", 0
+def_word "B/BUF", "BVBUF", 0
+        .word LIT, BLK_SIZE
+        .word EXIT
+
+;-----------------------------------------------------------------------
+; ( -- )   
+def_word "TIBZ", "TIBZ", 0
+        .word LIT, TIB_SIZE
+        .word EXIT
+;-----------------------------------------------------------------------
+; ( -- )   
+def_word "SOURCE", "SOURCED", 0
         .word BLK, AT, QDUP
         .word QBRANCH, 10
         .word BLOCK, BVBUF
         .word BRANCH, 08
-        .word TIB, TIBZ, AT
+        .word TIB, TIBZ
         .word EXIT
 
 ;-----------------------------------------------------------------------
@@ -198,30 +213,9 @@ def_word "'", "TICK", 0
 
 ;-----------------------------------------------------------------------
 ; ( -- )   easy way 
-def_word "COMPILE!", "COMPILE!", IMMEDIATE
+def_word "COMPILE!", "COMPILED", IMMEDIATE
         .word TICK, COMMA
 	.word EXIT
-
-.if 0
-
-; https://stackoverflow.com/questions/31636929/\
-; how-to-properly-implement-postpone-in-a-forth-system
-; https://github.com/ForthHub/discussion/discussions/105
-
-: state-on  ( -- )  1 state ! ;
-: state-off ( -- )  0 state ! ;
-
-: execute-compiling ( i*x xt --j*x )
-  state @ if  execute  exit  then
-  state-on  execute  state-off
-  ;
- 
-: postpone ( "name" -- )
-  bl word find dup 0= -13 and throw 1 = ( xt flag-special )
-  swap lit, if ['] execute-compiling else ['] compile, then compile,
-  ; immediate
-
-.endif 
 
 ;----------------------------------------------------------------------
 ; ( -- )  state mode compile
@@ -248,10 +242,11 @@ def_word "PFIND", "PFIND", 0
 ;----------------------------------------------------------------------
 ; (( c --  )) classic, c delimiter 
 def_word "WORD", "WORD", 0
-        .word BLK, FETCH
-        .word QBRANCH, 10, BLK, FETCH, BLOCK
-        .word BRANCH, 6, TIB, FETCH
-        .word TOIN, FETCH, PLUS, SWAP, ENCLOSE
+.if 0
+        .word BLK, AT
+        .word QBRANCH, 10, BLK, AT, BLOCK
+        .word BRANCH, 6, TIB, AT
+        .word TOIN, AT, PLUS, SWAP, ENCLOSE
         .word TOIN, PLUSTO, MINUS, TOR
         ; header
         .word HERE, LAST, TO
@@ -259,6 +254,7 @@ def_word "WORD", "WORD", 0
         .word RAT, HERE, CTO
         .word HERE, ONEPLUS, RTO
         .word CMOVE
+.endif
 	.word EXIT
 
 ;----------------------------------------------------------------------
@@ -274,11 +270,16 @@ def_word "ACCEPT", "ACCEPT", 0
         .word EXIT
 
 ;----------------------------------------------------------------------
+; (( -- ))  ZZZZ
+def_word "POSTPONE", "POSTPONE", 0
+        .word EXIT
+
+;----------------------------------------------------------------------
 ; ( -- )  compile a word, zzzz
 def_word ":", "COLON", 0
 	.word HERE, LAST, TO
-        .word CURRENT, FETCH, CONTEXT, TO
-        .word CREATE, LATEST, TRUE, OVER, 
+        .word CURRENT, AT, CONTEXT, TO
+        .word CREATE, LATEST, TTRUE, OVER 
         .word RBRAC
         .word EXIT
 
@@ -286,7 +287,7 @@ def_word ":", "COLON", 0
 ; ( -- )  ends a compile word, zzzz
 def_word ";", "SEMIS", 0
 	.word LIT, EXIT, COMMA
-        .word LAST, FETCH, LATEST, TO, 
+        .word LAST, AT, LATEST, TO 
         .word LBRAC
         .word EXIT
 
@@ -397,6 +398,22 @@ def_word "DONEXT", "DONEXT", 0
 	.word EXIT
 
 ;-----------------------------------------------------------------------
+; ( w1 w2 -- w3 ) w3 is the lesser of w1 and w2  
+def_word "MIN", "MIN", 0
+        .word DDUP, LTH 
+        .word QBRANCH, 04, SWAP 
+        .word DROP
+        .word EXIT
+
+;-----------------------------------------------------------------------
+; ( w1 w2 -- w3 ) w3 is the greather of w1 and w2  
+def_word "MAX", "MAX", 0
+        .word DDUP, GTH 
+        .word QBRANCH, 04, SWAP 
+        .word DROP
+        .word EXIT
+
+;-----------------------------------------------------------------------
 ;-----------------------------------------------------------------------
 ; (( -- ))  
 def_word "DOES", "DOES", 0
@@ -411,7 +428,7 @@ def_word "VALUE", "VALUE", 0
 
 ;-----------------------------------------------------------------------
 ; (( -- ))  
-def_word "TO", "TO", 0
+def_word "TO", "TOVALUE", 0
         .word TICK, TWOPLUS, COMMA 
         .word EXIT         
 
@@ -432,15 +449,10 @@ def_word "IS", "IS", IMMEDIATE
 ;-----------------------------------------------------------------------
 ; (( w1 -- w2 w3 ))     
 def_word "?", "QST", 0
-        .word FETCH, DOT
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 def_word "USTRING", "USTRING", 0
-        .word EXIT
-
-;-----------------------------------------------------------------------
-def_word "BUBUF", "BUBUF", 0
         .word EXIT
 
 ;-----------------------------------------------------------------------
@@ -453,15 +465,6 @@ def_word "UMAX", "UMAX", 0
 
 ;-----------------------------------------------------------------------
 def_word "UMIN", "UMIN", 0
-        .word EXIT
-
-;-----------------------------------------------------------------------
-;-----------------------------------------------------------------------
-def_word "STREAM", "STREAM", 0
-        .word BLK, FETCH, QDUP
-        .word QBRANCH, 6, BLOCK, BUBUF
-        .word BRANCH, 8, TIB, XTIB, FETCH
-        .word TOIN, FETCH, OVER, UMIN, USTRING 
         .word EXIT
 
 ;-----------------------------------------------------------------------

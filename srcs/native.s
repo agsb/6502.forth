@@ -40,14 +40,10 @@
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
-; ( -- ) just the first word
-def_word "NULL", "NULL", 0
-        nop
-        nop
-        nop
-        nop
-        ;goto next
-	release
+;
+; the order of words is to reduce branch offsets
+;
+;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
 ; ( w -- w << 1 ) roll left, C=0, C -> b0, b7 -> C
@@ -79,7 +75,7 @@ def_word "2*", "ASFL", 0
 ; ( w -- w >> 1 ) arithmetic right, sign keep, C -> b7, b0 -> C
 def_word "2/", "ASFR", 0
         lda 1, x
-        asl
+        asl 
         ror 1, x
         ror 0, x
         ;goto next
@@ -92,16 +88,6 @@ def_word "RDROP", "RDROP", 0
         pla
         ;goto next
 	release
-
-;-----------------------------------------------------------------------
-; ( w -- ) R( -- w ) 
-def_word ">R", "TOR", 0
-tor_:
-        lda 0, x
-        pha
-        lda 1, x
-        pha
-        bra drop_
 
 ;-----------------------------------------------------------------------
 ; ( w -- w | w w ) 
@@ -160,6 +146,16 @@ def_word "RSHIFT", "RSHIFT", 0
         dey
 	bne @loop
 @ends:
+        bra drop_
+
+;-----------------------------------------------------------------------
+; ( w -- ) R( -- w ) 
+def_word ">R", "TOR", 0
+tor_:
+        lda 0, x
+        pha
+        lda 1, x
+        pha
         bra drop_
 
 ;-----------------------------------------------------------------------
@@ -704,54 +700,25 @@ offset_:
         ;goto next
 	release
 
-
 ;-----------------------------------------------------------------------
-; ( a1 a2 n -- )    move bytes, 16-bits, signed, not optmized
+; ( a1 a2 n -- )    from, into, many, 
+; move bytes, 16-bits, signed, not optmized
 def_word "CMOVE", "CMOVE", 0
 cmove_:
         lda #3
         jsr ds2ws_
         ; ldy #0
-@loop:
-        ; copy bytes
-        lda (six), y
-        sta (two), y
-        ; decrement counter
-        lda one + 0
-        bne @bne0
-        dec one + 1
-@bne0:
-        dec one + 0
-        ; verify terminate
-        lda one + 0
-        ora one + 1
-        beq @ends
-@bne1:
-        ; increment origin
-        inc six + 0
-        bne @bne2
-        inc six + 1
-@bne2:
-        ; increment destiny
-        inc two + 0
-        bne @bne3
-        inc two + 1
-@bne3:
-        ; and loop
-        bne @loop
-@ends:
+        jsr ccopy_
         ;goto next
 	release
-        
+
 ;-----------------------------------------------------------------------
 ; ( a1 a2 n -- )    move words, 16-bit signed  
 def_word "MOVE", "MOVE", 0
         ; words to bytes
         asl 0, x 
         rol 1, x
-        clc
-        bcc cmove_
-
+        bra cmove_
 
 ;-----------------------------------------------------------------------
 ; prepare for mult or divd
@@ -798,7 +765,7 @@ opout:
 ; (( six ten -- two one ))
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w2 / w1 )   
-def_word "/", "/", 0
+def_word "/", "UDIV", 0
 div_:
         jsr opin
 @loop:
@@ -835,7 +802,7 @@ div_:
 ; (( six ten -- two one ))
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w2 * w1 )   
-def_word "*", "*", 0
+def_word "*", "UMUL", 0
 mul_:
         jsr opin
 @shift_r:
@@ -867,14 +834,14 @@ mul_:
 ;-----------------------------------------------------------------------
 ;       one byte constants
 ;-----------------------------------------------------------------------
-; (( -- w1 )) index of SP0 
+; ( -- w ) index of SP0 
 def_word "SP@", "SPAT", 0
         txa
         ; ldy #$00      ; page zero
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- w1 ))  index of RP0
+; ( -- w )  index of RP0
 def_word "RP@", "RPAT", 0
         stx np + 0
         tsx
@@ -886,7 +853,7 @@ def_word "RP@", "RPAT", 0
 ;-----------------------------------------------------------------------
 ;       Constants
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "0", "ZERO", 0
         lda #0
 lsbs_:
@@ -898,73 +865,73 @@ lsbs_:
 	release
 
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "1", "ONE", 0
         lda #1
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "2", "TWO", 0
         lda #2
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "3", "THREE", 0
         lda #3
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "4", "FOUR", 0
         lda #4
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "BS", "BS", 0
         lda #$8
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "TB", "TB", 0
         lda #$9
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "CR", "CR", 0
         lda #$10
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "PACE", "PACE", 0
         lda #$0B
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "CANCEL", "CANCEL", 0
         lda #$18
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "ESCAPE", "ESCAPE", 0
         lda #$1B
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- w))  
+; ( -- w )  
 def_word "BL", "BL", 0
         lda #$20
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-; (( -- CELL ))
+; ( -- CELL )
 def_word "CELL", "CCELL", 0
         lda CELL
         bra lsbs_
@@ -972,49 +939,49 @@ def_word "CELL", "CCELL", 0
 ;-----------------------------------------------------------------------
 ;       Variables
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
+; ( -- w )  reference of forth internal
 def_word "CURRENT", "CURRENT", 0
         lda #<current
         ldy #>current
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
+; ( -- w )  reference of forth internal
 def_word "CONTEXT", "CONTEXT", 0
         lda #<context
         ldy #>context
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
+; ( -- w )  reference of forth internal
 def_word "SOURCE", "SOURCE", 0
         lda #<source
         ldy #>source
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
+; ( -- w )  reference of forth internal
 def_word "SCR", "SCR", 0
         lda #<scr
         ldy #>scr
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
+; ( -- w )  reference of forth internal
 def_word "BLK", "BLK", 0
         lda #<blk
         ldy #>blk
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
+; ( -- w )  reference of forth internal
 def_word "UP", "UP", 0
         lda #<up
         ldy #>up
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
+; ( -- w )  reference of forth internal
 def_word "DP", "DP", 0
         lda #<dp
         ldy #>dp
@@ -1027,7 +994,7 @@ lsbw_:
 	release
 
 ;-----------------------------------------------------------------------
-; (( -- ))  used to reset S0
+; ( -- )  used to reset S0
 def_word "SP!", "SPTO", 0
         ; return hardwired S0
         lda #$FF
@@ -1035,7 +1002,7 @@ def_word "SP!", "SPTO", 0
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- ))  used to reset R0
+; ( -- )  used to reset R0
 def_word "RP!", "RPTO", 0
         ; return hardwired R0
         lda #$FF
@@ -1044,7 +1011,7 @@ def_word "RP!", "RPTO", 0
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal 
+; ( -- w )  reference of forth internal 
 ; must hold at least 84 chars, but 72 is enough
 def_word "TIB", "TIB", 0
         ; return hardwire T0
@@ -1056,7 +1023,7 @@ def_word "TIB", "TIB", 0
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal 
+; ( -- w )  reference of forth internal 
 ; 
 def_word "TOIN", "TOIN", 0
         lda #<toin
@@ -1064,28 +1031,28 @@ def_word "TOIN", "TOIN", 0
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal 
+; ( -- w )  reference of forth internal 
 def_word "LATEST", "LATEST", 0
         lda #<latest
         ldy #>latest
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal  
+; ( -- w )  reference of forth internal  
 def_word "LAST", "LAST", 0
         lda #<last
         ldy #>last
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal 
+; ( -- w )  reference of forth internal 
 def_word "STATE", "STATE", 0
         lda #<state
         ldy #>state
         bra lsbw_
 
 ;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
+; ( -- w )  reference of forth internal
 def_word "BASE", "BASE", 0
         lda #<base
         ldy #>base
@@ -1103,25 +1070,6 @@ showord:
 	inx
 	;goto next
 	release
-
-;----------------------------------------------------------------------
-; converts a byte value to hexadecimal
-puthex:
-        pha
-        ror
-        ror
-        ror
-        ror
-        jsr @conv
-        pla
-@conv:
-        and #$0F
-        ora #$30
-        cmp #$3A
-        bcc @ends
-        adc #$06
-@ends:
-        jmp putc
 
 ;----------------------------------------------------------------------
 ; ( w -- )  code a word in ASCII, hexadecimal
@@ -1162,411 +1110,6 @@ def_word "??", "NUMBER", 0
 @erro:
         ; what todo 
         bra @valid
-
-;----------------------------------------------------------------------
-; converts a byte value to hexadecimal
-;       00 to 0F valid, $FF error
-gethex:
-        ; control ?
-	sec
-	sbc #' '	; test < ' '
-        bmi @ctrl
-        ; digits ?
-	cmp #10		; test < 10
-	bcc @ends
-        ; alphas ?
-	sbc #07	        ; adjust for letters
-	cmp #$10        	
-        bmi @ends       ; test > 15
-@ctrl:
-        lda #$FF
-@ends:
-        ; returns a value 
-	rts
-
-;-----------------------------------------------------------------------
-; convert a character to a value, 
-; valid bases 1 to 36 only -+0-9A-Z.
-; no float point allowed
-;
-digits:
-	lda (two), y
-	iny
-@sneg:
-	; negative sign ?
-	cmp #'-'
-        bne @spos
-	lda #$FF
-        bne @ends
-@spos:
-	; positive sign ?
-	cmp #'+'
-        bne @vdot
-        lda #$FE
-        bne @ends
-@vdot:
-        ; valid . ? 
-	cmp #'.'	
-        bmi @vala
-        lda #$FD       
-        bne @ends
-@vala:
-        ; valid 0 ? 
-	cmp #'['	
-        bmi @valb
-        lda #$FC        
-        bne @ends
-@valb:
-        ; valid Z ? 
-	cmp #'0'	
-        bmi @digs
-        lda #$FB        
-        bne @ends
-@digs:
-        ; control ?
-	sec
-	sbc #$30	; test < ' '
-        ; digit ?
-	cmp #10		; test < 10
-	bcc @basv
-	sbc #$07	; adjust for letters
-@basv:
-	cmp base + 0	
-        bcc @ends
-        lda #$FA        ; overflow base
-@ends:
-        ; a returns a value or error code if negative 
-	rts
-
-;----------------------------------------------------------------------
-; accept an ascii 
-getascii:
-        jsr getc
-        and #$7F    ; mask 7-bit ASCII
-        cmp #' '
-        rts
-
-;----------------------------------------------------------------------
-; ( a n -- a n ) NOT STANDART, for use  
-def_word "UPPER", "UPPER", 0
-        lda #2
-        jsr ds2ws_
-@loop:
-        lda (two), y
-        cmp #'a' + 0
-        bmi @ends
-        cmp #'z' + 1
-        bpl @ends
-        and #$DF
-        sta (two), y
-@ends:
-        iny
-        cmp one + 0
-        bne @loop
-        ;goto next_
-        release
-
-;----------------------------------------------------------------------
-; accept an ascii line, stores a asciiz line, n < 255
-; ( a n -- u ) NOT STANDART, for use  
-def_word "EXPECT", "EXPECT", 0
-expect:
-        lda #2
-        jsr ds2ws_
-        
-        lda #' '        
-@loop:
-        sta (two), y
-        iny 
-        cmp one + 0
-        beq @end
-        jsr getascii
-        bpl @loop
-; minimal edit for \b \t \u \n \r ...
-@nl:
-        cmp #10 ;   '\n'
-        beq @end
-@cr:
-        cmp #13 ;   '\r'
-        beq @end
-@tab:
-        cmp #9  ;   '\t'
-        lda #' '
-        beq @loop
-@bck:
-        cmp #8  ;   '\b'
-        beq @ctl
-@cnc:
-        cmp #24 ;   '\u'
-        beq expect
-@ctl:
-        dey
-        dey
-        jmp @loop
-@end:
-        lda #0
-        sta (two), y
-; push how many stored
-        dex
-        dex
-        sty 0, x
-        sta 1, x
-        ;goto next
-	release
-
-; zzzz continue
-;---------------------------------------------------------------------
-; receive a word between spaces to a buffer as c-str
-; ( c a -- c-str | 0 ) 
-def_word "word", "word", 0
-word:
-        lda #2
-        jsr ds2ws_
-        ; ldy #0
-        dey
-        
-@skip:  ; skip spaces
-        iny
-        lda (one), y
-        beq @ends
-        cmp two + 0
-        beq @skip
-        phy
-
-@scan:  ; scan spaces
-        iny
-        lda (one), y
-        beq @ends
-        cmp two + 0
-        bne @scan
-; zzzz
-@ends:  
-        jsr pushy_
-        dey
-        jsr pushy_
-        ply
-        jsr pushy_
-        ; goto next_
-        release
-@eols:
-        
-pushy_:
-        inx
-        inx
-        sty 0, x
-        lda #0
-        sta 1, x
-        rts
-
-;-----------------------------------------------------------------------
-; ( a1 a2 n -- m ) 
-; compare n bytes of a2 and a1, return how many equals, n < 255  
-def_word "CSAME", "CSAME", 0
-        lda #3
-        jsr ds2ws_
-
-        dex
-        dex
-        sty 1, x
-@loop:
-        lda (six), y
-        eor (two), y
-        bne @ends
-        iny
-        cpy one + 0
-        bne @loop
-@ends:
-        sty 0, x
-        ;goto next
-	release
-;-----------------------------------------------------------------------
-;
-; Forth inner stuff:
-;
-; ip MUST be preserved and reserved, for those routines
-;
-; as is, Minimal Thread Code for 6502
-; 
-; only jumps for primitives, native code.
-;
-;-----------------------------------------------------------------------
-
-;-----------------------------------------------------------------------
-; (( w1 -- ))  EXECUTE is done by nest in MTC
-def_word "EXEC", "EXEC", 0
-        lda 0, x
-        sta wk + 0
-        lda 1, x
-        sta wk + 1
-        inx 
-        inx
-        jmp nest_
-
-;-----------------------------------------------------------------------
-; (( w1 -- ))  EXIT is done by unnest in MTC
-def_word "EXIT", "EXIT", 0
-unnest_:  ; pull from return stack, aka semis
-        pla
-        sta ip + 1
-        pla
-        sta ip + 0
-        ; ;goto next
-	release
-
-;-----------------------------------------------------------------------
-next_:  
-        ; http://wilsonminesco.com/0-overhead_Forth_interrupts/
-        ; if irqreq is zero, do interrupts; else irqreq must be 1
-        ldy irqreq
-        beq hang_
-
-;-----------------------------------------------------------------------
-look_:
-        ; ldy #1
-        lda (ip), y
-        sta wk + 1
-        dey
-        lda (ip), y
-        sta wk + 0
-
-        ; next reference
-        lda #$02
-        clc
-        adc ip + 0
-        sta ip + 0
-        bcc pick_
-        inc ip + 1
-
-;-----------------------------------------------------------------------
-pick_:  ; unique in Minimal Thread Code, 3 + 2 + 2 cc
-        lda wk + 1
-        cmp #(>end_of_native + 1)    
-        bmi jump_
-
-;-----------------------------------------------------------------------
-nest_:  ; push into return stack, aka docol
-        lda ip + 0
-        pha
-        sta ip + 1
-        pha
-
-;-----------------------------------------------------------------------
-link_: ; next reference
-        lda wk + 0
-        sta ip + 0
-        lda wk + 1
-        sta ip + 1
-        ;goto next
-	release
-
-;-----------------------------------------------------------------------
-; process a interrupt, could be a pool, void for now
-hang_:
-        inc irqreq
-        lda irqjmp + 0
-        sta wk + 0
-        lda irqjmp + 1
-        sta wk + 1
-
-;-----------------------------------------------------------------------
-jump_:  ; creed, do the jump
-        
-        ; jsr step_
-
-        jmp (wk)
-
-; alternatve for list the primitives
-step_:
-        rts
-        ; alternative 
-        pla
-        pla
-        jmp showord
-
-
-;----------------------------------------------------------------------
-;
-; common
-;
-;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
-def_word "COLD", "COLD", 0
-cold:
-
-;-----------------------------------------------------------------------
-; (( -- w ))  reference of forth internal
-def_word "WARM", "WARM", 0
-warm:
-
-; copy block rom to ram ?
-; init variables ?
-
-; only lsb
-        ldx #$FF
-        txs
-
-        lda #>T0
-        sta tibz + 1
-        lda #<T0
-        sta tibz + 0
-
-        lda #00
-        sta state + 1
-        sta state + 0
-        sta base + 1
-
-        lda #$10
-        sta base + 0
-
-; link for inner next
-        lda #<next_
-        sta void + 0
-        lda #>next_
-        sta void + 1
-
-; link list of headers, NOOP must be the last compiled word
-        lda #<NOOP
-        sta last + 0
-        lda #>NOOP
-        sta last + 1
-
-; next heap free cell
-        lda #<end_of_forth
-        sta dp + 0
-        lda #>end_of_forth
-        sta dp + 1
-
-;---------------------------------------------------------------------
-;   supose never change
-
-abort:
-
-quit:
-
-        jmp 0000
-
-;----------------------------------------------------------------------
-; BEWARE, MUST BE AT END OF PRIMITIVES ! 
-; MINIMAL THREAD CODE DEPENDS ON IT !
-end_of_native:  ;       end of primitives:
-        nop
-        nop
-
-;-----------------------------------------------------------------------
-;
-; start of pre-compiled dictionary
-;
-.include "words.s"
-
-;-----------------------------------------------------------------------
-; (( w1 -- w1 ))     
-def_word "NOOP", "NOOP", 0
-	.word EXIT
-
-;----------------------------------------------------------------------
-end_of_forth:
-
-.byte $DE, $AD, $C0, $DE
 
 ;----------------------------------------------------------------------
 

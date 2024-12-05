@@ -4,7 +4,7 @@
 
     Review of functions in lowercase and words in uppercase
     Going for a internal REPL 
-    split forth.s into 
+    split forths.s into 
 
         minimal.s (with minimal core), 
         native.s (core words in native code),

@@ -106,21 +106,21 @@ H0000 = 0
 ;    constants
 
 ;-----------------------------------------------------------------------
-.if 0
 
 ; highlander, reserved flag.
-FLAG_RSV = 1<<5
+; FLAG_RSV = 1<<5
+FLAG_RSV = 0
 
-; highlander, restrict for compiler flag.
-FLAG_CPL = 1<<6
-
-.endif
-;-----------------------------------------------------------------------
+; highlander, compiler flag.
+; FLAG_CPL = 1<<6
+FLAG_CPL = 0
 
 ; highlander, immediate flag.
 FLAG_IMM = 1<<7
 
 IMMEDIATE = FLAG_IMM
+
+MASK_FLAG = .NOT (FLAG_IMM .OR FLAG_CPL .OR FLAG_RSV) 
 
 ; maximum length of words
 LENGTH = 32
@@ -128,11 +128,19 @@ LENGTH = 32
 ; cell size, two bytes, 16-bit
 CELL = 2
 
-; forth TIB terminal input area
-TERMINAL  = $50 + 4
+; terminal input buffer
+TIB_SIZE = $54
 
+; pad buffer
+PAD_SIZE = $54
+
+; sizeof a buffer
+BLK_SIZE = 1024
+
+; logical false
 FALSE = 0
 
+; logical true
 TRUE = -1
 
 ;-----------------------------------------------------------------------
@@ -273,15 +281,21 @@ byes:
 
 .include "minimal.s"
 
+end_of_minimal: ;       end of minimals
+
 .include "native.s"
 
-end_of_native:  ;       end of primitives:
+end_of_native: ;        end of primitives
 
 .include "compiled.s"
 
-.byte $DE, $AD, $C0, $DE
+end_of_compiled: ;      end of primitives
+
+; .include "extras.s"
 
 end_of_forth:
+
+.byte $DE, $AD, $C0, $DE
 
 ;----------------------------------------------------------------------
 .end

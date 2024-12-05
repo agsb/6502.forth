@@ -45,7 +45,7 @@
 ; compare bytes, backwards, return zero if equal, n < 255  
 ; input: from (six), into (two), size (one+0)
 ; output: many not equal (one+1)
-csame:
+csame_:
         ldy one + 0
 @loop:
         lda (two), y
@@ -59,14 +59,19 @@ csame:
         rts
 
 ;-----------------------------------------------------------------------
-;   copy bytes, forward, from (six), into (two), many (one)
-ccopy_:
-        ldy #0
-@loop:
-        ; copy bytes
-        lda (six), y
-        sta (two), y
         ; decrement counter
+cfrom_:
+        ; increment origin
+        inc six + 0
+        bne cinto_
+        inc six + 1
+cinto_:
+        ; increment destiny
+        inc two + 0
+        bne cmany_
+        inc two + 1
+        ; decrement counter
+cmany_:
         lda one + 0
         bne @bne0
         dec one + 1
@@ -75,23 +80,36 @@ ccopy_:
         ; verify terminate
         lda one + 0
         ora one + 1
-        beq @ends
-@bne1:
-        ; increment origin
-        inc six + 0
-        bne @bne2
-        inc six + 1
-@bne2:
-        ; increment destiny
-        inc two + 0
-        bne @bne3
-        inc two + 1
-@bne3:
-        ; and loop
+        rts
+
+;-----------------------------------------------------------------------
+;   copy bytes, forward, from (six), into (two), many (one)
+ccopy_:
+        ldy #0
+@loop:
+        ; copy bytes
+        lda (six), y
+        sta (two), y
+        ; updates 
+        jsr cfrom_
         bne @loop
 @ends:
         rts
         
+;-----------------------------------------------------------------------
+;   fill bytes, forward, which (six), into (two), many (one)
+cfill_:
+        ldy #0
+@loop:
+        ; copy bytes
+        lda six + 0
+        sta (two), y
+        ; decrement counter
+        jsr cinto_
+        bne @loop
+@ends:
+        rts
+
 ;----------------------------------------------------------------------
 ; ( w -- )  code a word, in ASCII, hexadecimal
 dotw_:
@@ -324,7 +342,7 @@ expect:
 ; input: from (two), separator (one)
 ; output: starts (one+0), stops (one+1)
 ;
-word:
+token:
         ldy #255
         
 @skip:  ; skip spaces
@@ -372,7 +390,7 @@ okey:
 
 resolve:
 ; get a token
-        jsr word
+        jsr token
 
 ;-----------------------------------------------------------------------
 find_:
@@ -442,11 +460,11 @@ find_:
 ;-----------------------------------------------------------------------
 evaluate:
 ; executing ? if == \0
-        lda stat + 0   
+        lda state + 0   
         beq execute
 
 ; immediate ? if < \0
-        lda stat + 1   
+        lda state + 1   
         bmi immediate      
 
 compile:
@@ -459,10 +477,10 @@ immediate:
 execute:
 
         lda #>resolvept
-        sta ipt + 1
+        sta ip + 1
         lda #<resolvept
-        sta ipt + 0
-        bra pick
+        sta ip + 0
+        bra pick_
 
 ;-----------------------------------------------------------------------
 ;
@@ -523,6 +541,7 @@ def_word "EXECUTE", "EXECUTE", 0
 ;-----------------------------------------------------------------------
 ; (( w1 -- ))  EXIT is done by unnest in MTC
 def_word "EXIT", "EXIT", 0
+exit:   ; aka
 unnest_:  ; pull from return stack, aka semis
         pla
         sta ip + 1
@@ -606,63 +625,25 @@ step_:
 ;---------------------------------------------------------------------
 
 ;---------------------------------------------------------------------
-comma:
-    	ldy #(wrd)
-    	ldx #(here)
-
-    	lda 0, y
-    	sta (0, x)
-    	jsr incwx
-    	lda 1, y
-    	sta (0, x)
-    	jmp incwx
-	rts
-
-;---------------------------------------------------------------------
-; ( -- ) zzzz
-def_word ";", "semis",  FLAG_IMM
-; update last, panic if colon not lead elsewhere 
-        lda back + 0 
-        sta last + 0
-        lda back + 1 
-        sta last + 1
-
-; stat is 'interpret'
-        lda #0
-        sta stat + 0
-
-; compound words must ends with exit
-finish:
-        lda #<exit
-        sta wrd + 0
-        lda #>exit
-        sta wrd + 1
-        jsr wcomma
-
-        ; jmp next
-        bra next    ; always taken
-
-;---------------------------------------------------------------------
 ; ( -- ) zzzz
 def_word ":", "colon", 0
+; state is 'compile'
+        lda #1
+        sta state + 0
+
+header:
 ; save dp, panic if semis not follow elsewhere
         lda dp + 0
         sta last + 0 
         lda dp + 1
         sta last + 1 
 
-; stat is 'compile'
-        lda #1
-        sta state + 0
-
-@header:
-; copy last into (here)
-        ldy #1
-        lda last + 1
-        sta (here), y
-        dey
-        lda last + 0
-        sta (here), y
+; save latest into dp
+        lda latest + 0
+        sta wk + 0
+        lda latest + 1
+        sta wk + 1
+        jsr wcomma
 
 ; get following token
         jsr token
@@ -670,26 +651,63 @@ def_word ":", "colon", 0
 ; copy it
         ldy #0
 @loop:  
-        lda (tout), y
-        cmp #33    ; stops at controls
-        bmi @ends
-        sta (here), y
+        lda (ten), y
+        sta (dp), y
+        cmp #' '    
+        beq @ends
         iny
         bne @loop
 
-ends:
+@ends:
 ; update here
         tya
-        clc
-        adc here + 0
-        sta here + 0
-        bcc @bccs
-        inc here + 1
-@bccs:
+        jsr dpadds
 
 ; done
-        ; jmp next
-        bra next    ; always taken
+        ; goto next
+        release
+
+;---------------------------------------------------------------------
+; ( -- ) zzzz
+def_word ";", "semis",  FLAG_IMM
+; update last, panic if colon not lead elsewhere 
+        lda last + 0 
+        sta latest + 0
+        lda last + 1 
+        sta latest + 1
+
+; state is 'interpret'
+        lda #0
+        sta state + 0
+
+; compound words must ends with exit
+finish:
+        lda #<exit
+        sta wk + 0
+        lda #>exit
+        sta wk + 1
+        jsr wcomma
+
+        ; goto next
+        release
+
+;---------------------------------------------------------------------
+wcomma:
+        ldy #1
+    	lda wk + 1
+    	sta (dp), y
+        dey
+        lda wk + 0
+        sta (dp), y
+        lda #02
+dpadds:
+        clc
+        adc dp + 0
+        sta dp + 0
+        bcc @bcc
+        inc dp + 1
+@bcc:
+	rts
 
 ;----------------------------------------------------------------------
 ;

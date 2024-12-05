@@ -220,7 +220,7 @@ latest:         .word $0        ; reference to last link, is LASTEST
 last:           .word $0        ; reference to last here
 
 tibz:           .word $0        ; TIB, fixed terminal input buffer 
-toin:           .word $0        ; reference to next input
+toin:           .word $0        ; reference to next word
 
 scr:            .word $0        ; actual editing screen number
 blk:            .word $0        ; actual interpretation block number

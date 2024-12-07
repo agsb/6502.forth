@@ -107,7 +107,7 @@ dups_:
         lda 2, x
         sta 0, x
         lda 3, x
-stan1_:
+nsta1_:
         sta 1, x
         ;goto next
 	release
@@ -120,7 +120,7 @@ def_word "OVER", "OVER", 0
         lda 4, x
         sta 0, x
         lda 5, x
-        bra stan1_
+        bra nsta1_
 
 ;-----------------------------------------------------------------------
 ; ( w u -- w << u ) 
@@ -185,7 +185,7 @@ def_word "+", "PLUS", 0
         sta 2, x
         lda 3, x
         adc 1, x
-        bra stan3_
+        bra nsta3_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w2 - w1 ) 
@@ -196,7 +196,7 @@ def_word "-", "MINUS", 0
         sta 2, x
         lda 3, x
         sbc 1, x
-        bra stan3_
+        bra nsta3_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w1 OR w2 ) 
@@ -206,7 +206,7 @@ def_word "OR", "ORT", 0
         sta 2, x
         lda 3, x
         ora 1, x
-        bra stan3_
+        bra nsta3_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w1 XOR w2 ) 
@@ -216,7 +216,7 @@ def_word "XOR", "XORT", 0
         sta 2, x
         lda 3, x
         eor 1, x
-        bra stan3_
+        bra nsta3_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w1 AND w2 ) 
@@ -226,7 +226,7 @@ def_word "AND", "ANDT", 0
         sta 2, x
         lda 3, x
         and 1, x
-stan3_:        
+nsta3_:        
         sta 3, x
         inx
         inx
@@ -270,7 +270,7 @@ def_word "FALSE", "FFALSE", 0
 nfalse:
         lda #$00
         sta 2, x
-        bra stan3_
+        bra nsta3_
 
 ;-----------------------------------------------------------------------
 ; ( -- $FFFF ) 
@@ -280,7 +280,7 @@ def_word "TRUE", "TTRUE", 0
 ntrue:
         lda #$FF
         sta 2, x
-        bra stan3_
+        bra nsta3_
 
 ;-----------------------------------------------------------------------
 ; ( w1 w2 -- w1 < w2 )   
@@ -410,7 +410,7 @@ def_word "D+", "DPLUS", 0
         sta 4, x
         lda 1, x
         adc 5, x
-        bra stan5_
+        bra nsta5_
 
 ;-----------------------------------------------------------------------
 ; ( d1 d2 -- d2 - d1 ) 
@@ -427,7 +427,7 @@ def_word "D-", "DMINUS", 0
         sta 4, x
         lda 1, x
         sbc 5, x
-stan5_:
+nsta5_:
         sta 5, x
 drop2_:
         inx
@@ -667,7 +667,7 @@ def_word "0BRANCH", "QBRANCH", 0
         inx
         lda 255, x
         ora 254, x
-        beq bran_
+        beq branch_
 bump_:
         ; next reference
         clc
@@ -683,7 +683,7 @@ bump_:
 ;-----------------------------------------------------------------------
 ; ( -- )    branch by offset, 16-bit signed  
 def_word "BRANCH", "BRANCH", 0
-bran_:
+branch_:
         lda (ip), y
         sta wk + 0
         iny
@@ -832,7 +832,7 @@ mul_:
         bra opout
 
 ;-----------------------------------------------------------------------
-;       one byte constants
+;       one byte connstats
 ;-----------------------------------------------------------------------
 ; ( -- w ) index of SP0 
 def_word "SP@", "SPAT", 0
@@ -851,7 +851,7 @@ def_word "RP@", "RPAT", 0
         bra lsbs_
 
 ;-----------------------------------------------------------------------
-;       Constants
+;       Connstats
 ;-----------------------------------------------------------------------
 ; ( -- w )  
 def_word "0", "ZERO", 0

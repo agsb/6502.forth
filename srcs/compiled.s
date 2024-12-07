@@ -132,7 +132,7 @@ def_word "CATCH", "CATCH", 0
 ;-----------------------------------------------------------------------
 ; ( ??? exception# -- ??? exception# ),  as Forth-2012
 def_word "THROW", "THROW", 0
-	.word QDUP, QBRANCH, $13
+	.word QDUP, QBRANCH, $1A
 	.word HANDLER, AT, RPTO
 	.word RTO, HANDLER, TO
 	.word RTO, SWAP, TOR
@@ -472,6 +472,12 @@ def_word "MAX", "MAX", 0
         .word DDUP, GTH 
         .word QBRANCH, $04, SWAP 
         .word DROP
+        .word EXIT
+
+;-----------------------------------------------------------------------
+; ( w -- u ) absolute value  
+def_word "ABS", "ABS", 0
+        .word DUP, ZLT, QBRANCH, $04, NEGATE
         .word EXIT
 
 ;-----------------------------------------------------------------------

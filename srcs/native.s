@@ -1059,58 +1059,6 @@ def_word "BASE", "BASE", 0
         bra lsbw_
 
 ;----------------------------------------------------------------------
-; ( w -- )  code a word, in ASCII, hexadecimal
-def_word ".", "DOT", 0
-showord:
-	lda 1, x
-	jsr puthex
-	lda 0, x
-	jsr puthex
-	inx
-	inx
-	;goto next
-	release
-
-;----------------------------------------------------------------------
-; ( w -- )  code a word in ASCII, hexadecimal
-def_word "??", "NUMBER", 0
-        sty 0, x
-        sty 1, x
-
-	jsr gethex
-        bmi @erro
-	asl
-	asl
-	asl
-	asl
-	sta 1, x
-
-	jsr gethex
-        bmi @erro
-	ora 1, x
-	sta 1, x
-	
-	jsr gethex
-        bmi @erro
-	asl
-	asl
-	asl
-	asl
-	sta 0, x
-
-	jsr gethex
-        bmi @erro
-        ora 0, x
-	sta 0, x
-
-@valid:
-        ; got next_
-        release
-
-@erro:
-        ; what todo 
-        bra @valid
-
 ;----------------------------------------------------------------------
 
 

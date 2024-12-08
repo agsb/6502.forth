@@ -112,7 +112,7 @@ cfill_:
 
 ;----------------------------------------------------------------------
 ; ( w -- )  code a word, in ASCII, hexadecimal
-dotw_:
+putword:
 	lda one + 1
 	jsr puthex
 	lda one + 0
@@ -139,11 +139,20 @@ puthex:
         jmp putc
 
 ;----------------------------------------------------------------------
-;   calculate a value for word, from a hexadecimal ascii FFFF
+;   get a hexdecimal value ascii FFFF
 ;   input: from (two), offset (y)
 ;   output: value (one), offset (Y) advanced
-numb_:
+getword:
 
+        dex
+        jsr gethexdec
+        dex
+        jsr gethexdec
+        ; got next_
+        rts
+
+;----------------------------------------------------------------------
+gethexdec:
         lda (two), y
         iny
 	
@@ -153,34 +162,15 @@ numb_:
 	asl
 	asl
 	asl
-	sta one + 1
+	sta 0, x
 
         lda (two), y
         iny
 	
         jsr gethex
         bmi @erro
-	ora one + 1
-        sta one + 1
-	
-        lda (two), y
-        iny
-	
-        jsr gethex
-        bmi @erro
-	asl
-	asl
-	asl
-	asl
-	sta one + 0
-
-        lda (two), y
-        iny
-
-	jsr gethex
-        bmi @erro
-        ora one + 0
-	sta one + 0
+	ora 0, x
+        sta 0, x
         
         clc
 @valid:
@@ -617,10 +607,11 @@ jump_:  ; creed, do the jump
 ; alternatve for list the primitives
 step_:
         rts
-        ; alternative 
+        ; alternative zzzz
         pla
         pla
-        jmp showord
+        jsr putword
+        jmp exit
         
 ;---------------------------------------------------------------------
 

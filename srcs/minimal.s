@@ -299,10 +299,10 @@ accept:
 ; minimal edit for \b \t \u \n \r ...
 @nl:
         cmp #10 ;   '\n'
-        beq @end
+        beq @ends
 @cr:
         cmp #13 ;   '\r'
-        beq @end
+        beq @ends
 @tab:
         cmp #9  ;   '\t'
         dey
@@ -313,7 +313,7 @@ accept:
         beq @ctrl
 @cnc:
         cmp #24 ;   '\u'
-        beq expect
+        beq accept
 @ctrl:
         dey
         dey
@@ -321,7 +321,9 @@ accept:
 
 @ends:
 ; append a \0
-        stz (two), y
+        lda #0
+        sta (two), y
+
 ; how many stored
         sty one + 0
         stz one + 1
@@ -355,49 +357,6 @@ token:
         ply
         ; starts
         sty one + 0
-        rts
-
-;---------------------------------------------------------------------
-; the outer loop
-
-resolvept:
-        .word okey
-
-;---------------------------------------------------------------------
-okey:
-
-;   uncomment for feedback
-;       lda stat + 0
-;       bne resolve
-;       lda #'O'
-;       jsr putchar
-;       lda #'K'
-;       jsr putchar
-;       lda #10
-;       jsr putchar
-
-resolve:
-
-ticks:
-; get a token
-        jsr token
-        
-        ldy one + 0
-        dey     ; offset as c-name
-        sty two + 0
-
-        lda toin + 1
-        sta two + 1
-
-        lda one + 1
-        sta toin + 0
-
-        sec
-        lda one + 1
-        sbc one + 0
-        sta one + 0
-
-        jsr finds
         rts
 
 ;-----------------------------------------------------------------------
@@ -477,6 +436,29 @@ finds:
         rts
         
 ;-----------------------------------------------------------------------
+ticks:
+; get a token
+        jsr token
+        
+        ldy one + 0
+        dey     ; offset as c-name
+        sty two + 0
+
+        lda toin + 1
+        sta two + 1
+
+        lda one + 1
+        sta toin + 0
+
+        sec
+        lda one + 1
+        sbc one + 0
+        sta one + 0
+
+        jsr finds
+        rts
+
+;-----------------------------------------------------------------------
 evals:
 ; executing ? if == \0
         lda state + 0   
@@ -500,6 +482,27 @@ execute:
         lda #<resolvept
         sta ip + 0
         bra pick_
+
+;---------------------------------------------------------------------
+; the outer loop
+
+resolvept:
+        .word okey
+
+;---------------------------------------------------------------------
+okey:
+
+;   uncomment for feedback
+;       lda stat + 0
+;       bne resolve
+;       lda #'O'
+;       jsr putchar
+;       lda #'K'
+;       jsr putchar
+;       lda #10
+;       jsr putchar
+
+resolve:
 
 ;-----------------------------------------------------------------------
 ;

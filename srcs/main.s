@@ -118,8 +118,6 @@ FLAG_CPL = 0
 ; highlander, immediate flag.
 FLAG_IMM = 1<<7
 
-IMMEDIATE = FLAG_IMM
-
 MASK_FLAG = .NOT (FLAG_IMM .OR FLAG_CPL .OR FLAG_RSV) 
 
 ; maximum length of words

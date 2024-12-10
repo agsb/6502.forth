@@ -156,13 +156,13 @@ def_word "BLOCK", "BLOCK", 0
 
 ;-----------------------------------------------------------------------
 ; ( -- )      
-def_word "VARIABLE", "VARIABLE", IMMEDIATE
+def_word "VARIABLE", "VARIABLE", FLAG_IMM
         .word CREATE, LIT, DOVAR, COMMA, LIT, ZERO, COMMA
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w -- )     
-def_word "CONSTANT", "CONSTANT", IMMEDIATE
+def_word "CONSTANT", "CONSTANT", FLAG_IMM
         .word CREATE, LIT, DOCON, COMMA, COMMA
 	.word EXIT
 
@@ -242,6 +242,14 @@ def_word "SOURCE", "SOURCED", 0
         .word TIB, TIBZ
         .word EXIT
 
+
+;-----------------------------------------------------------------------
+; ( -- )   
+def_word "IMMEDIATE", "IMMEDIATE", 0
+        .word LATEST, TWOPLUS, DUP 
+        .word AT, FLAG_IMM, ORT, TO
+        .word EXIT
+
 ;-----------------------------------------------------------------------
 ; ( -- )   
 def_word "'", "TICK", 0
@@ -250,7 +258,7 @@ def_word "'", "TICK", 0
 
 ;-----------------------------------------------------------------------
 ; ( -- )   easy way 
-def_word "COMPILE!", "COMPILED", IMMEDIATE
+def_word "COMPILE!", "COMPILED", FLAG_IMM
         .word TICK, COMMA
 	.word EXIT
 
@@ -332,34 +340,34 @@ def_word ";", "SEMIS", 0
 ;       old school, offset branches
 ;-----------------------------------------------------------------------
 ; ( -- )     
-def_word "BEGIN", "BEGIN", IMMEDIATE
+def_word "BEGIN", "BEGIN", FLAG_IMM
         .word HERE
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
-def_word "AGAIN", "AGAIN", IMMEDIATE
+def_word "AGAIN", "AGAIN", FLAG_IMM
         .word LIT, BRANCH, COMMA
         .word HERE, MINUS, COMMA
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
-def_word "UNTIL", "UNTIL", IMMEDIATE
+def_word "UNTIL", "UNTIL", FLAG_IMM
         .word LIT, QBRANCH, COMMA 
         .word HERE, MINUS, COMMA
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )  eForth AHEAD ???? offset 
-def_word "GOTO", "GOTO", IMMEDIATE
+def_word "GOTO", "GOTO", FLAG_IMM
         .word LIT, BRANCH, COMMA
         .word HERE, ZERO, COMMA
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )  eForth AFT ???? offset
-def_word "AFT", "AFT", IMMEDIATE
+def_word "AFT", "AFT", FLAG_IMM
         .word DROP 
         .word LIT, GOTO, COMMA
         .word LIT, BEGIN, COMMA
@@ -368,26 +376,26 @@ def_word "AFT", "AFT", IMMEDIATE
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
-def_word "IF", "IF", IMMEDIATE
+def_word "IF", "IF", FLAG_IMM
         .word LIT, QBRANCH, COMMA
         .word HERE, ZERO, COMMA
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
-def_word "THEN", "THEN", IMMEDIATE
+def_word "THEN", "THEN", FLAG_IMM
         .word HERE, OVER, MINUS, SWAP, TO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
-def_word "ENDIF", "ENDIF", IMMEDIATE
+def_word "ENDIF", "ENDIF", FLAG_IMM
         .word THEN
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
-def_word "ELSE", "ELSE", IMMEDIATE
+def_word "ELSE", "ELSE", FLAG_IMM
         .word LIT, BRANCH, COMMA
         .word HERE, ZERO, COMMA
         .word SWAP, THEN
@@ -395,32 +403,32 @@ def_word "ELSE", "ELSE", IMMEDIATE
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
-def_word "END", "END", IMMEDIATE
+def_word "END", "END", FLAG_IMM
         .word UNTIL
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
-def_word "WHILE", "WHILE", IMMEDIATE
+def_word "WHILE", "WHILE", FLAG_IMM
         .word LIT, IF
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
-def_word "REPEAT", "REPEAT", IMMEDIATE
+def_word "REPEAT", "REPEAT", FLAG_IMM
         .word LIT, AGAIN, COMMA
         .word HERE, SWAP, TO
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- ) counts down 
-def_word "FOR", "FOR", IMMEDIATE
+def_word "FOR", "FOR", FLAG_IMM
         .word LIT, TOR, COMMA, HERE
 	.word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( -- ) until zero     
-def_word "NEXT", "NEXT", IMMEDIATE
+def_word "NEXT", "NEXT", FLAG_IMM
         .word LIT, DONEXT, COMMA
         .word LIT, UNTIL, COMMA
         .word EXIT
@@ -514,7 +522,7 @@ def_word "TO", "TOVALUE", 0
 
 ;-----------------------------------------------------------------------
 ; ( -- )  
-def_word "DEFER", "DEFER", IMMEDIATE
+def_word "DEFER", "DEFER", FLAG_IMM
         .word CREATE 
         .word LIT, NOOP, COMMA 
         .word LIT, EXIT, COMMA 
@@ -522,7 +530,7 @@ def_word "DEFER", "DEFER", IMMEDIATE
 
 ;-----------------------------------------------------------------------
 ; ( -- )  
-def_word "IS", "IS", IMMEDIATE
+def_word "IS", "IS", FLAG_IMM
         .word POSTPONE
         .word EXIT         
 

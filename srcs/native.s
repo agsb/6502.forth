@@ -547,6 +547,20 @@ def_word "2-", "TWOMINUS", 0
         ;goto next
 	release
         
+
+;-----------------------------------------------------------------------
+; ( w -- ) show TOS as hexadecimal
+def_word ".", "DOT", 0
+        lda 0, x
+        sta one + 0
+        lda 1, x
+        sta one + 1
+        jsr putword
+        inx
+        inx
+        ; got next
+        release
+
 ;-----------------------------------------------------------------------
 ; ( w -- w ) assure word is even, because CELL is 2 
 def_word "ALIGN", "ALIGN", 0
@@ -618,7 +632,7 @@ def_word ":$", "COLON_CODE", 0
 ;-----------------------------------------------------------------------
 ; ( -- ) zzzz for return from native code 
 ; the code is not inner mode ! must compile native code for it
-def_word ";$", "COMMA_CODE", IMMEDIATE
+def_word ";$", "COMMA_CODE", FLAG_IMM
 where_i_am:
         ; zzzz
         rts

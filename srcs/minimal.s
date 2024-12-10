@@ -59,7 +59,6 @@ csame_:
         rts
 
 ;-----------------------------------------------------------------------
-        ; decrement counter
 cfrom_:
         ; increment origin
         inc six + 0
@@ -104,7 +103,7 @@ cfill_:
         ; copy bytes
         lda six + 0
         sta (two), y
-        ; decrement counter
+        ; updates
         jsr cinto_
         bne @loop
 @ends:
@@ -143,7 +142,6 @@ puthex:
 ;   input: from (two), offset (y)
 ;   output: value (one), offset (Y) advanced
 getword:
-
         dex
         jsr gethexdec
         dex
@@ -183,18 +181,17 @@ gethexdec:
 ; converts a byte value to hexadecimal
 ;       00 to 0F valid, $FF error
 gethex:
-        ; control ?
-	sec
-	sbc #' '	; test < ' '
-        bmi @ctrl
+        sec
+	sbc #'0'	; test < '0'
+        bmi @nonm
         ; digits ?
 	cmp #10		; test < 10
 	bcc @ends
         ; alphas ?
 	sbc #07	        ; adjust for letters
-	cmp #$10        	
+	cmp #16        	
         bmi @ends       ; test > 15
-@ctrl:
+@nonm:
         lda #$FF
 @ends:
         ; returns a value 
@@ -241,7 +238,7 @@ digit:
 @digs:
         ; control ?
 	sec
-	sbc #$30	; test < ' '
+	sbc #' ' 	; test < ' '
         ; digit ?
 	cmp #10		; test < 10
 	bcc @basv
@@ -285,14 +282,17 @@ uppr_:
 ; appends \b ... \0
 ; input: into (two), size (one) < 255, 
 ; output: many (one) 
-expect:
+accept:
+        dec one + 0
+        cmp #0
+        bmi @ends
         ldy #0
         lda #' '        
 @loop:
         sta (two), y
         iny 
         cmp one + 0
-        beq @end
+        beq @ends
         jsr getascii
         bpl @loop
 
@@ -305,23 +305,23 @@ expect:
         beq @end
 @tab:
         cmp #9  ;   '\t'
+        dey
         lda #' '
-        beq @loop
+        bra @loop
 @bck:
         cmp #8  ;   '\b'
-        beq @ctl
+        beq @ctrl
 @cnc:
         cmp #24 ;   '\u'
         beq expect
-@ctl:
+@ctrl:
         dey
         dey
-        jmp @loop
+        bra @loop
 
-@end:
+@ends:
 ; append a \0
-        lda #0
-        sta (two), y
+        stz (two), y
 ; how many stored
         sty one + 0
         stz one + 1
@@ -358,8 +358,6 @@ token:
         rts
 
 ;---------------------------------------------------------------------
-
-;---------------------------------------------------------------------
 ; the outer loop
 
 resolvept:
@@ -379,39 +377,63 @@ okey:
 ;       jsr putchar
 
 resolve:
+
+ticks:
 ; get a token
         jsr token
+        
+        ldy one + 0
+        dey     ; offset as c-name
+        sty two + 0
+
+        lda toin + 1
+        sta two + 1
+
+        lda one + 1
+        sta toin + 0
+
+        sec
+        lda one + 1
+        sbc one + 0
+        sta one + 0
+
+        jsr finds
+        rts
 
 ;-----------------------------------------------------------------------
-find_:
-
-; load latest link
-        lda latest + 1
-        sta six + 1
+; find a name in dictionary, latest dictionary link
+;       input: name (two), many (one), 
+;       temporary (six)
+;       output cfa (wk), 0x0 if no match
+;       same as tick
+finds:
+; preserve latest
         lda latest + 0
-        sta six + 0
-        
+        pha
+        lda latest + 1
+        pha
+
 @loop:
 ; lsb linked list
-        lda six + 0
+        lda latest + 0
         sta wk + 0
-        lda six + 1
+        lda latest + 1
         sta wk + 1
 
 ; verify \0x0
         ora wk + 0
-        beq @ends
+        beq @done
 
 @each:    
 ; update next link 
         ldy #0
         lda (wk), y
-        sta six + 0
+        sta latest + 0
         iny
         lda (wk), y
-        sta six + 1
+        sta latest + 1
 
-; update to c-name    
+; update to name    
         clc
         lda #2
         adc wk + 0
@@ -420,21 +442,27 @@ find_:
         inc wk + 1
 @bcc:
 
-; compare chars
-        lda one + 0
-        tay
-        iny
-        ; backwards
+; compare chars, vide token
+        ldy #0
+
 @equal:
-        dey
-        beq @ends
+        iny
         lda (two), y
         cmp (wk), y
         beq @equal
+        cpy one + 0
+        beq @ends
         bra @loop
 
 @ends:
+; restore latest
+        pla
+        sta latest + 1
+        pla
+        sta latest + 0
+
 ; save the flag, MSB of state is (size and flag) 
+        ldy #0
         lda (wk), y
         sta state + 1
 
@@ -446,9 +474,10 @@ find_:
         bcc @done
         inc wk + 1
 @done:
+        rts
         
 ;-----------------------------------------------------------------------
-evaluate:
+evals:
 ; executing ? if == \0
         lda state + 0   
         beq execute

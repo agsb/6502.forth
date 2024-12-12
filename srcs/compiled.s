@@ -132,7 +132,7 @@ def_word "CATCH", "CATCH", 0
 ;-----------------------------------------------------------------------
 ; ( ??? exception# -- ??? exception# ),  as Forth-2012
 def_word "THROW", "THROW", 0
-	.word QDUP, QBRANCH, $1A
+	.word QDUP, QBRANCH, * + $1A
 	.word HANDLER, AT, RPTO
 	.word RTO, HANDLER, TO
 	.word RTO, SWAP, TOR
@@ -236,9 +236,9 @@ def_word "BUFFER:", "BUFFERQ", 0
 ; ( -- )   
 def_word "SOURCE", "SOURCED", 0
         .word BLK, AT, QDUP
-        .word QBRANCH, $10
+        .word QBRANCH, * + $10
         .word BLOCK, BVBUF
-        .word BRANCH, $08
+        .word BRANCH, * + $08
         .word TIB, TIBZ
         .word EXIT
 
@@ -289,8 +289,8 @@ def_word "PFIND", "PFIND", 0
 def_word "WORD", "WORD", 0
 .if 0
         .word BLK, AT
-        .word QBRANCH, $10, BLK, AT, BLOCK
-        .word BRANCH, $06, TIB, AT
+        .word QBRANCH, * + $10, BLK, AT, BLOCK
+        .word BRANCH, * + $06, TIB, AT
         .word TOIN, AT, PLUS, SWAP, ENCLOSE
         .word TOIN, PLUSTO, MINUS, TOR
         ; header
@@ -347,15 +347,13 @@ def_word "BEGIN", "BEGIN", FLAG_IMM
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "AGAIN", "AGAIN", FLAG_IMM
-        .word LIT, BRANCH, COMMA
-        .word HERE, MINUS, COMMA
+        .word LIT, BRANCH, COMMA, COMMA
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "UNTIL", "UNTIL", FLAG_IMM
-        .word LIT, QBRANCH, COMMA 
-        .word HERE, MINUS, COMMA
+        .word LIT, QBRANCH, COMMA, COMMA
 	.word EXIT 
 
 ;-----------------------------------------------------------------------
@@ -384,7 +382,7 @@ def_word "IF", "IF", FLAG_IMM
 ;-----------------------------------------------------------------------
 ; ( -- )     
 def_word "THEN", "THEN", FLAG_IMM
-        .word HERE, OVER, MINUS, SWAP, TO
+        .word HERE, OVER, SWAP, TO
 	.word EXIT
 
 ;-----------------------------------------------------------------------
@@ -470,7 +468,7 @@ def_word "ENDCASE", "ENDCASE", 0
 ; ( w1 w2 -- w3 ) w3 is the lesser of w1 and w2  
 def_word "MIN", "MIN", 0
         .word DDUP, LTH 
-        .word QBRANCH, $04, SWAP 
+        .word QBRANCH, * + $04, SWAP 
         .word DROP
         .word EXIT
 
@@ -478,14 +476,14 @@ def_word "MIN", "MIN", 0
 ; ( w1 w2 -- w3 ) w3 is the greather of w1 and w2  
 def_word "MAX", "MAX", 0
         .word DDUP, GTH 
-        .word QBRANCH, $04, SWAP 
+        .word QBRANCH, * + $04, SWAP 
         .word DROP
         .word EXIT
 
 ;-----------------------------------------------------------------------
 ; ( w -- u ) absolute value  
 def_word "ABS", "ABS", 0
-        .word DUP, ZLT, QBRANCH, $04, NEGATE
+        .word DUP, ZLT, QBRANCH, * + $04, NEGATE
         .word EXIT
 
 ;-----------------------------------------------------------------------

@@ -1,5 +1,15 @@
 ## notes 
 
+12/12/2024
+
+    This forth is for a toy, using a 8-bit CPU, 
+    there is no need of offsets in BRANCH, then
+    review for use absolute address.
+    
+    Pre-compiled words uses ( * + cells ).
+
+    All Forth code goes from $1000
+
 26/11/2024
 
     Review of functions in lowercase and words in uppercase

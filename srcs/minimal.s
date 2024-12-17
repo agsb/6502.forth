@@ -42,16 +42,17 @@
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
-; compare bytes, backwards, return zero if equal, n < 255  
+; compare bytes, backwarks, return zero if equal, n < 255  
 ; input: from (six), into (two), size (one+0)
 ; output: many not equal (one+1)
 csame_:
-        ldy one + 0
+        ldy #0
 @loop:
         lda (two), y
         eor (six), y
         bne @ends
-        dey
+        iny
+        cpy one + 0
         bne @loop
 @ends:
         ; equals if zero
@@ -209,44 +210,44 @@ digit:
 	; negative sign ?
 	cmp #'-'
         bne @spos
-	lda #$FF
+	lda #$FE
         bne @ends
 @spos:
 	; positive sign ?
 	cmp #'+'
         bne @vdot
-        lda #$FE
+        lda #$FD
         bne @ends
 @vdot:
         ; valid . ? 
 	cmp #'.'	
-        bmi @vala
-        lda #$FD       
+        bne @vala
+        lda #$FC       
         bne @ends
 @vala:
-        ; valid 0 ? 
+        ; valid Z ? 
 	cmp #'['	
         bmi @valb
-        lda #$FC        
-        bne @ends
-@valb:
-        ; valid Z ? 
-	cmp #'0'	
-        bmi @digs
         lda #$FB        
         bne @ends
+@valb:
+        ; valid 0 ? 
+	cmp #'0'	
+        bpl @digs
+        lda #$FA        
+        bne @ends
 @digs:
-        ; control ?
-	sec
-	sbc #' ' 	; test < ' '
-        ; digit ?
+        sec
+	sbc #'0'	; pure number '0'
+        ; digits ?
 	cmp #10		; test < 10
-	bcc @basv
-	sbc #$07	; adjust for letters
+	bcc @ends
+        ; alphas ?
+	sbc #07	        ; adjust for letters
 @basv:
 	cmp base + 0	
         bcc @ends
-        lda #$FA        ; overflow base
+        lda #$F9        ; overflow base
 @ends:
         ; a returns a value or error code if negative 
 	rts
@@ -261,7 +262,7 @@ getascii:
 
 ;----------------------------------------------------------------------
 ; make uppercase, from (two), many (one) < 255
-uppr_:
+upper_:
         ldy #0
 @loop:
         lda (two), y
@@ -284,8 +285,8 @@ uppr_:
 ; output: many (one) 
 accept:
         dec one + 0
-        cmp #0
-        bmi @ends
+        beq @ends
+
         ldy #0
         lda #' '        
 @loop:
@@ -293,6 +294,7 @@ accept:
         iny 
         cmp one + 0
         beq @ends
+
         jsr getascii
         bpl @loop
 
@@ -330,7 +332,7 @@ accept:
         rts
 
 ;---------------------------------------------------------------------
-; receive a word between spaces to a buffer as c-str
+; receive a word between separators in buffer
 ; input: from (two), separator (one)
 ; output: starts (one+0), stops (one+1)
 ;
@@ -362,7 +364,6 @@ token:
 ;-----------------------------------------------------------------------
 ; find a name in dictionary, latest dictionary link
 ;       input: name (two), many (one), 
-;       temporary (six)
 ;       output cfa (wk), 0x0 if no match
 ;       same as tick
 finds:
@@ -401,17 +402,16 @@ finds:
         inc wk + 1
 @bcc:
 
-; compare chars, vide token
+; compare two[i] == wk[i+1], leave the size_flag   
         ldy #0
 
 @equal:
+        lda (two), y 
         iny
-        lda (two), y
         cmp (wk), y
         beq @equal
         cpy one + 0
-        beq @ends
-        bra @loop
+        bne @loop
 
 @ends:
 ; restore latest

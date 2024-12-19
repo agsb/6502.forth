@@ -237,18 +237,14 @@ nsta3_:
 ; ( d -- FALSE | TRUE ) 
 def_word "D0=", "DZEQ", 0
         lda 2, x
+        ora 3, x
         bne nfalse
-        lda 3, x
-        bne nfalse
-        lda 0, x
-        bne nfalse
-        lda 1, x
-        bne nfalse
-        bra ntrue
+        beq isnil_
 
 ;-----------------------------------------------------------------------
 ; ( w -- w == 0 ) 
 def_word "0=", "ZEQ", 0
+isnil_:
         lda 0, x
         ora 1, x
         bne nfalse
@@ -372,6 +368,7 @@ def_word "ROT", "ROT", 0
         pha
         lda 5, x
         pha
+iswb_:
         lda 2, x
         sta 4, x
         lda 3, x
@@ -385,6 +382,7 @@ def_word "-ROT", "BROT", 0
         pha
         lda 3, x
         pha
+iswc_:
         lda 4, x
         sta 2, x
         lda 5, x
@@ -434,25 +432,26 @@ drop2_:
         inx
         inx
         inx
-        ; goto next
+        ;goto next
         release
 
 ;-----------------------------------------------------------------------
 ; ( c a -- ) *a = 0x00FF AND c, c store
 def_word "C!", "CTO", 0
         lda 2, x
-        clc
-        bcc stow_
+        bra stow_
 
 ;-----------------------------------------------------------------------
 ; ( w a -- ) *a = w, store 
 def_word "!", "TO", 0
         lda 2, x
         sta (0, x)
+        ;------
         inc 0, x
         bne @bne
         inc 1, x
 @bne:
+        ;------
         lda 3, x
 stow_:
         sta (0, x)
@@ -465,10 +464,12 @@ def_word "+!", "PLUSTO", 0
         lda (0, x)
         adc 2, x
         sta (0, x)
+        ;------
         inc 0, x
-        bne @bcc
+        bne @bne
         inc 1, x
-@bcc:
+@bne:
+        ;------
         lda (0, x)
         adc 3, x
         bra stow_
@@ -478,7 +479,7 @@ def_word "+!", "PLUSTO", 0
 def_word "C@", "CAT", 0
         lda (0,x)
         sta 0, x
-        sty 0, x
+        sty 1, x
         ;goto next
 	release
 
@@ -487,10 +488,12 @@ def_word "C@", "CAT", 0
 def_word "@", "AT", 0
         lda (0,x)
         pha
+        ;------
         inc 0, x
         bne @bne
         inc 1, x
 @bne:
+        ;------
         lda (0,x)
         sta 1, x
         pla
@@ -501,10 +504,12 @@ def_word "@", "AT", 0
 ;-----------------------------------------------------------------------
 ; ( w  -- w + 1 ) 
 def_word "1+", "ONEPLUS", 0
+        ;------
         inc 0, x
         bne @bne
         inc 1, x
 @bne:
+        ;------
         ;goto next
 	release
 
@@ -546,7 +551,6 @@ def_word "2-", "TWOMINUS", 0
 @bcc:
         ;goto next
 	release
-        
 
 ;-----------------------------------------------------------------------
 ; ( w -- ) show TOS as hexadecimal
@@ -558,7 +562,7 @@ def_word ".", "DOT", 0
         jsr putword
         inx
         inx
-        ; got next
+        ;goto next
         release
 
 ;-----------------------------------------------------------------------
@@ -770,7 +774,7 @@ opout:
         sta 2, x
         lda one + 1
         sta 3, x
-        ; goto next
+        ;goto next
         release
 
 ;-----------------------------------------------------------------------

@@ -176,7 +176,7 @@ gethexdec:
         rts
 @erro:
         sec
-        bra @valid
+        bcs @valid
 
 ;----------------------------------------------------------------------
 ; converts a byte value to hexadecimal
@@ -309,7 +309,7 @@ accept:
         cmp #9  ;   '\t'
         dey
         lda #' '
-        bra @loop
+        bne @loop
 @bck:
         cmp #8  ;   '\b'
         beq @ctrl
@@ -319,7 +319,7 @@ accept:
 @ctrl:
         dey
         dey
-        bra @loop
+        jmp @loop
 
 @ends:
 ; append a \0
@@ -327,8 +327,8 @@ accept:
         sta (two), y
 
 ; how many stored
+        sta one + 1
         sty one + 0
-        stz one + 1
         rts
 
 ;---------------------------------------------------------------------
@@ -345,7 +345,8 @@ token:
         beq @ends       ; ends at \0
         cmp one + 0
         beq @skip
-        phy
+        tya
+        pha
 
 @scan:  ; scan spaces
         iny
@@ -356,7 +357,8 @@ token:
 @ends:  
         ; stops 
         sty one + 1
-        ply
+        pla
+        tay
         ; starts
         sty one + 0
         rts
@@ -472,7 +474,7 @@ compile:
 
         jsr wcomma
 
-        bra resolve
+        jmp resolve
 
 immediate:
 execute:
@@ -481,7 +483,7 @@ execute:
         sta ip + 1
         lda #<resolvept
         sta ip + 0
-        bra pick_
+        jmp pick_
 
 ;---------------------------------------------------------------------
 ; the outer loop

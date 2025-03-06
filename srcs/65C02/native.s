@@ -279,20 +279,6 @@ ntrue:
         bra nsta3_
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- w1 < w2 )   
-def_word "U<", "ULT", 0
-        lda 3, x
-        cmp 1, x
-        bmi fends
-        lda 2, x
-        cmp 0, x
-fends:
-        inx
-        inx
-        bcc nfalse
-        bcs ntrue
-
-;-----------------------------------------------------------------------
 ; ( w1 w2 -- w1 == w2 ) 
 def_word "=", "EQ", 0
         clc
@@ -303,23 +289,35 @@ def_word "=", "EQ", 0
         eor 3, x
         bne fends
         sec
-        bra fends
+fends:
+        inx
+        inx
+        bcc nfalse
+        bcs ntrue
 
 ;-----------------------------------------------------------------------
-; ( d1 d2 -- d1 < d2 ) 
+; ( w1 w2 -- w1 < w2 )  
+def_word "U<", "ULT", 0
+        sec
+        lda 0, x
+        sbc 2, x
+        lda 1, x
+        sbc 3, x
+        bra fends 
+
+;-----------------------------------------------------------------------
+; ( d1 d2 -- d1 < d2 )
 def_word "D<", "DLTH", 0
-        lda 5, x
-        cmp 1, x
-        bmi fends
-        lda 4, x
-        cmp 0, x
-        bmi fends
-        lda 7, x
-        cmp 3, x
-        bmi fends
-        lda 6, x
-        cmp 2, x
-        bra fends
+        sec
+        lda 0, x
+        sbc 4, x
+        lda 1, x
+        sbc 5, x
+        lda 2, x
+        sbc 6, x
+        lda 3, x
+        sbc 7, x
+        bra fends 
 
 ;-----------------------------------------------------------------------
 ; ( -- w ) R( w -- w )  

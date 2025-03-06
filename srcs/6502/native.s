@@ -305,7 +305,7 @@ fends:
         bcs ntrue
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- w1 < w2 ) zzzz  
+; ( w1 w2 -- w1 < w2 ) zzzz ERROR 
 def_word "U<", "ULT", 0
         sec
         lda 0, x
@@ -315,7 +315,7 @@ def_word "U<", "ULT", 0
         jmp fends
 
 ;-----------------------------------------------------------------------
-; ( d1 d2 -- d1 < d2 ) zzzz
+; ( d1 d2 -- d1 < d2 ) zzzz ERROR
 def_word "D<", "DLTH", 0
         sec
         lda 0, x
@@ -1045,7 +1045,7 @@ lsbw_:
 	release
 
 ;-----------------------------------------------------------------------
-; ( -- )  used to reset S0
+; ( -- )  used to reset S0  ZZZZ ERROR
 def_word "SP!", "SPTO", 0
         ; return hardwired S0
         lda #$FF
@@ -1053,7 +1053,7 @@ def_word "SP!", "SPTO", 0
         bne lsbw_
 
 ;-----------------------------------------------------------------------
-; ( -- )  used to reset R0
+; ( -- )  used to reset R0 ZZZZ ERROR
 def_word "RP!", "RPTO", 0
         ; return hardwired R0
         lda #$FF

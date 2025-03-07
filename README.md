@@ -1,4 +1,4 @@
-# 65C02.forth
+# 6502.forth
 
 A Minimal Thread Code Forth for 6502 and 65C02, to use in a personal SBC toy
 

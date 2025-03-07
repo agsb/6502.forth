@@ -4,6 +4,10 @@
 
     Reworking for review of functions and sequences 
 
+    review of: < D< U<
+
+    includes words: R0 S0 
+
 12/12/2024
 
     This forth is for a toy, using a 8-bit CPU, 

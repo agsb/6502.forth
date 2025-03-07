@@ -879,10 +879,27 @@ mul_:
 ;-----------------------------------------------------------------------
 ;       Constants
 ;-----------------------------------------------------------------------
+; ( w -- )   
+def_word "SP!", "SPTO", 0
+        lda 0, x
+        tax
+        release
+
+;-----------------------------------------------------------------------
+; ( w -- )  
+def_word "RP!", "RPTO", 0
+        lda 0, x
+        stx np + 0
+        tax
+        txs
+        ldx np + 0
+        release
+
+;-----------------------------------------------------------------------
 ; ( -- w ) index of SP0 
 def_word "SP@", "SPAT", 0
         txa
-        ; ldy #$00      ; page zero
+        ldy #$00      ; page zero
         clc
         bcc lsbs_
 
@@ -1046,20 +1063,18 @@ lsbw_:
 
 ;-----------------------------------------------------------------------
 ; ( -- )  used to reset S0  ZZZZ ERROR
-def_word "SP!", "SPTO", 0
+def_word "S0", "SP0", 0
         ; return hardwired S0
+hrdwrd:
         lda #$FF
         ; ldy #$00
         bne lsbw_
 
 ;-----------------------------------------------------------------------
 ; ( -- )  used to reset R0 ZZZZ ERROR
-def_word "RP!", "RPTO", 0
-        ; return hardwired R0
-        lda #$FF
-        ; ldy #$01
+def_word "R0", "RP0", 0
         iny
-        bne lsbw_
+        bne hrdwrd
 
 ;-----------------------------------------------------------------------
 ; ( -- w )  reference of forth internal 

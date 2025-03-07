@@ -305,17 +305,17 @@ fends:
         bcs ntrue
 
 ;-----------------------------------------------------------------------
-; ( w1 w2 -- w1 < w2 ) zzzz ERROR 
+; ( w1 w2 -- w1 < w2 )  
 def_word "U<", "ULT", 0
-        sec
-        lda 0, x
-        sbc 2, x
-        lda 1, x
-        sbc 3, x
+        lda 3, x
+        cmp 1, x
+        bmi fends
+        lda 2, x
+        cmp 0, x
         jmp fends
 
 ;-----------------------------------------------------------------------
-; ( d1 d2 -- d1 < d2 ) zzzz ERROR
+; ( d1 d2 -- d1 < d2 ) 
 def_word "D<", "DLTH", 0
         sec
         lda 0, x

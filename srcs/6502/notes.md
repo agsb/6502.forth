@@ -1,5 +1,9 @@
 ## notes 
 
+07/03/2025
+
+    Reworking for review of functions and sequences 
+
 12/12/2024
 
     This forth is for a toy, using a 8-bit CPU, 

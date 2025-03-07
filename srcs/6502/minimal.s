@@ -35,14 +35,14 @@
 
 ;-----------------------------------------------------------------------
 ; A is for dummy
+; Y is zero almost time
 ; X is the data stack index
-; Y is zero almost time, by next_
+; S is the return stack index
 ; stacks grows backwards, push decreases, pull increases
-; notation: left is the TOP
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
-; compare bytes, backwarks, return zero if equal, n < 255  
+; compare n < 256 bytes, return zero in A if equal  
 ; input: from (six), into (two), size (one+0)
 ; output: many not equal (one+1)
 csame_:
@@ -54,12 +54,16 @@ csame_:
         iny
         cpy one + 0
         bne @loop
+
 @ends:
         ; equals if zero
         sty one + 1
         rts
 
 ;-----------------------------------------------------------------------
+;
+; stuff for 16-bit compare, copy, fill
+;
 cfrom_:
         ; increment origin
         inc six + 0
@@ -111,7 +115,7 @@ cfill_:
         rts
 
 ;----------------------------------------------------------------------
-; ( w -- )  code a word, in ASCII, hexadecimal
+; ( w -- )  code a word in ASCII, hexadecimal
 putword:
 	lda one + 1
 	jsr puthex
@@ -262,6 +266,7 @@ getascii:
 
 ;----------------------------------------------------------------------
 ; make uppercase, from (two), many (one) < 255
+; use for words
 upper_:
         ldy #0
 @loop:
@@ -505,6 +510,10 @@ okey:
 ;       jsr putchar
 
 resolve:
+        ; get a token
+        jsr token
+
+        jsr finds
 
 ;-----------------------------------------------------------------------
 ;

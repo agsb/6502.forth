@@ -1,4 +1,4 @@
-## notes 
+## Notes 
 
 07/03/2025
 
@@ -82,13 +82,14 @@
     interrupt service from R65F11, 
     also http://wilsonminesco.com/6502primer/IRQconx.html 
  
-## todo
+## Todo
     
     still NO multi-user and NO multi-task
-    still NO vocabularies 
+    still NO vocabularies, but will be a linked-list not a array.
     need DOES>, CREATE, ACCEPT, WORD,   
     
-## read me
+
+## Read me
 
 ;-----------------------------------------------------------------------
 ;
@@ -152,7 +153,7 @@
 ;               all bytes following name
 ;               are references or native code
 ;
-;	2. The first reference could be any.
+;	2. The first reference of a word could be any.
 ;
 ;       No need of DOCOL at first.
 ;

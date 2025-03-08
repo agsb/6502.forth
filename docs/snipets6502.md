@@ -1,6 +1,7 @@
 
 # 6502 code snipets
 
+    
 ## BRA, always branch +/- 127, 4 cc
 ```
 * = $0000
@@ -48,32 +49,42 @@
 * = $0000
 0000   B5 00                LDA $00,X          ;(4)
 0002   48                   PHA                ;(3)
-0003   E8                   INX                ;(2)
-0004   B5 00                LDA $00,X          ;(4)
+0004   B5 00                LDA $01,X          ;(4)
 0006   48                   PHA                ;(3)
-0007   E8                   INX                ;(2)
+0004   CA                   DEX                ;(2)
+0004   CA                   DEX                ;(2)
 .END
 ```
 
 ## pull a indexed word, 20 cc
 ```
 * = $0000
-0000   CA                   DEX                ;(2)
+0003   E8                   INX                ;(2)
+0007   E8                   INX                ;(2)
 0001   68                   PLA                ;(4)
-0002   95 00                STA $00,X          ;(4)
-0004   CA                   DEX                ;(2)
+0002   95 00                STA $01,X          ;(4)
 0005   68                   PLA                ;(4)
 0006   95 00                STA $00,X          ;(4)
 .END
 ```
 
-## copy a word indexed to Y and A, 12 cc
+## pull word indexed by X, into Y and A, 12 cc
 ```
 * = $0000
-0000   B4 00                LDY $00,X          ;(4)
-0002   E8                   INX                ;(2)
+0000   B4 00                LDY $01,X          ;(4)
 0003   B5 00                LDA $00,X          ;(4)
-0005   E8                   INX                ;(2)
+0003   E8                   INX                ;(2)
+0003   E8                   INX                ;(2)
+.END
+```
+
+## push a word indexed by X, from Y and A, 12 cc
+```
+* = $0000
+0004   CA                   DEX                ;(2)
+0004   CA                   DEX                ;(2)
+0000   B4 00                STY $01,X          ;(4)
+0003   B5 00                STA $00,X          ;(4)
 .END
 ```
 
@@ -82,9 +93,9 @@
 * = $0000
 0000   B5 00                LDA $00,X          ;(4)
 0002   85 02                STA $00            ;(3)
-0004   E8                   INX                ;(2)
-0005   B5 00                LDA $00,X          ;(4)
+0005   B5 00                LDA $01,X          ;(4)
 0007   85 01                STA $01            ;(3)
+0004   E8                   INX                ;(2)
 0009   E8                   INX                ;(2)
 .END
 ```
@@ -92,12 +103,12 @@
 ## copy into a word indexed, 18 cc
 ```
 * = $0000
-0000   A5 00                LDA $00            ;(3)
 0002   CA                   DEX                ;(2)
+0007   CA                   DEX                ;(2)
+0000   A5 00                LDA $00            ;(3)
 0003   95 00                STA $00,X          ;(4)
 0005   A5 01                LDA $01            ;(3)
-0007   CA                   DEX                ;(2)
-0008   95 00                STA $00,X          ;(4)
+0008   95 00                STA $01,X          ;(4)
 .END
 ```
 
@@ -107,6 +118,7 @@
 0000   E6 00                INC $00            ;(5)
 0002   D0 02                BNE $0006          ;(2)
 0004   E6 01                INC $01            ;(5)
+0006   ; any
 .END
 ```
 
@@ -116,19 +128,7 @@
 0000   F6 00                INC $00,X          ;(6)
 0002   D0 02                BNE $0006          ;(2)
 0004   F6 01                INC $01,X          ;(6)
-.END
-```
-
-## add a byte to a word indexed in zp, 22 cc
-```
-* = $0000
-0000   18                   CLC                ;(2)
-0001   A9 02                LDA #$02           ;(2)
-0003   75 00                ADC $00,X          ;(4)
-0005   95 00                STA $00,X          ;(4)
-0007   A9 00                LDA #$00           ;(2)
-0009   75 01                ADC $01,X          ;(4)
-000B   95 01                STA $01,X          ;(4)
+0006   ; any
 .END
 ```
 
@@ -141,6 +141,19 @@
 0005   85 00                STA $00            ;(3)
 0007   D0 02                BCC $000B          ;(2)
 0009   E6 01                INC $01            ;(5)
+.END
+```
+
+## add a byte to a word indexed in zp, 22 cc
+```
+* = $0000
+0000   18                   CLC                ;(2)
+0001   A9 02                LDA #$02           ;(2)
+0003   75 00                ADC $00,X          ;(4)
+0005   95 00                STA $00,X          ;(4)
+0007   D0 02                BCC $000B          ;(2)
+0009   E6 01                INC $01,X          ;(5)
+000B   ; any
 .END
 ```
 
@@ -196,7 +209,7 @@
 .END
 ```
 
-## change +/- 2 to SP, 14 cc 
+## change +/- 2 (INC or DEC) to SP, 14 cc 
 ```
 * = $0000
 0000   86 00                STX $00            ;(3)
@@ -209,6 +222,7 @@
 ```
 
 ## interrupt cascate counter, 42 cc, ~49.7 days in milliseconds
+## could be at any memory also
 ```
 * = $0000
 0000   78                   SEI                ;(2)
@@ -221,6 +235,7 @@
 000D   E6 02                INC $02            ;(5)
 000F   D0 02                BNE L0013          ;(2)
 0011   E6 03                INC $03            ;(5)
+; add resolution and extention $04, $05 etc
 0013   58         L0013     CLI                ;(2)
 0014   40                   RTI                ;(6)
 .END

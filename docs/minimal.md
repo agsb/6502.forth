@@ -69,3 +69,9 @@
 : tp++ tp p++ tp p! ;
 : tp-- tp p-- tp p! ;
 
+: state0 tp cell + ;
+: state state0 ;
+: state_toggle state state nand ;
+
+
+

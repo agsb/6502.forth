@@ -1,5 +1,9 @@
 ## Notes 
 
+09/03/2025
+
+    Many reviews, continues.
+
 07/03/2025
 
     Reworking for review of functions and sequences 

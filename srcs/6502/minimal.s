@@ -39,25 +39,24 @@
 ; X is the data stack index
 ; S is the return stack index
 ; stacks grows backwards, push decreases, pull increases
+; one, two, six, ten are page zero bytes
 ;-----------------------------------------------------------------------
 
 ;-----------------------------------------------------------------------
-; compare n < 256 bytes, return zero in A if equal  
+; compare n < 256 bytes, backwards, 
+; return zero in A if equal  
 ; input: from (six), into (two), size (one+0)
-; output: many not equal (one+1)
 csame_:
-        ldy #0
+        ldy one + 0
 @loop:
+        dey
         lda (two), y
         eor (six), y
         bne @ends
-        iny
-        cpy one + 0
+        cpy #0
         bne @loop
-
 @ends:
-        ; equals if zero
-        sty one + 1
+        tya
         rts
 
 ;-----------------------------------------------------------------------
@@ -140,7 +139,7 @@ puthex:
         bcc @ends
         adc #$06
 @ends:
-        jmp putc
+        jmp putch
 
 ;----------------------------------------------------------------------
 ;   get a hexdecimal value ascii FFFF
@@ -289,8 +288,11 @@ upper_:
 ; input: into (two), size (one) < 255, 
 ; output: many (one) 
 accept:
-        dec one + 0
+        ldy one + 0
         beq @ends
+
+        iny
+        sty one + 0
 
         ldy #0
         lda #' '        
@@ -503,11 +505,11 @@ okey:
 ;       lda stat + 0
 ;       bne resolve
 ;       lda #'O'
-;       jsr putchar
+;       jsr putchhar
 ;       lda #'K'
-;       jsr putchar
+;       jsr putchhar
 ;       lda #10
-;       jsr putchar
+;       jsr putchhar
 
 resolve:
         ; get a token
@@ -552,7 +554,7 @@ def_word "KEY", "KEY", 0
 ; ( c -- )  for use  
 def_word "EMIT", "EMIT", 0
         lda 0, x
-        jsr putc
+        jsr putch
         inx
         inx
         ;goto next_
@@ -742,6 +744,66 @@ dpadds:
         inc dp + 1
 @bcc:
 	rts
+
+;----------------------------------------------------------------------
+cold:
+;   disable interrupts
+        sei
+
+;   clear BCD
+        cld
+
+;   set real stack
+        ldx #$FF
+        txs
+
+;   enable interrupts
+        cli
+
+;----------------------------------------------------------------------
+warm:
+; link list of headers
+        lda #>h_exit
+        sta last + 1
+        lda #<h_exit
+        sta last + 0
+
+; next heap free cell, same as init:
+        lda #>end_of_forth + 1
+        sta here + 1
+        lda #0
+        sta here + 0
+
+;---------------------------------------------------------------------
+reset:
+        ldy #>tib
+        sty toin + 1
+        sty spt + 1
+        sty rpt + 1
+
+abort:
+        ldy #<sp0
+        sty spt + 0
+
+quit:
+        ldy #<rp0
+        sty rpt + 0
+
+	ldy #0
+; clear tib stuff
+        sty tib + 0
+; clear cursor
+        sty toin + 0
+; stat is 'interpret' == \0
+        sty stat + 0
+
+        .byte $2c   ; mask next two bytes, nice trick !
+
+;---------------------------------------------------------------------
+; the outer loop
+
+resolvept:
+        .word okey
 
 ;----------------------------------------------------------------------
 ;

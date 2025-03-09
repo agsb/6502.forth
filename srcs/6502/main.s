@@ -103,8 +103,9 @@ H0000 = 0
 ;-----------------------------------------------------------------------
 ;   init of Forth 
 ;-----------------------------------------------------------------------
-;    constants
 
+;-----------------------------------------------------------------------
+;   constants
 ;-----------------------------------------------------------------------
 
 ; highlander, reserved flag.
@@ -147,24 +148,25 @@ TRUE = -1
 ; $0000 to $003F 
 ; $0100 to $013F 
 ; $0200 to $02FF
+; $0300 to $03FF
 
 ;-----------------------------------------------------------------------
 .segment "ZERO"
 
-* = $40 
+* = $A0 
 
-; depends on BIOS, define later
+; depends on BIOS
 
 status:        .byte $0
 irqreq:        .byte $0
-irqjmp:        .word $0
+irqjmp:        .addr $0
 
 ; forth variables
 
-up:     .word $0        ; user pointer
-dp:     .word $0        ; dictionary pointer, mixed header + code
-ip:     .word $0        ; instruction pointer
-wk:     .word $0        ; fixed above np
+up:     .addr $0        ; user pointer
+dp:     .addr $0        ; dictionary pointer, mixed header + code
+ip:     .addr $0        ; instruction pointer
+wk:     .addr $0        ; fixed above np
 
 ; extra dummies
 np:     .res 8

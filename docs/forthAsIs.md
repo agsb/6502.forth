@@ -24,4 +24,6 @@
 
     KEY, EMIT, SOURCE, GETLINE, TOKEN ; I/O
 
-    COMMA, TICK, FIND, NUMBER ; interactives
+    COMMA, TICK, FIND, NUMBER ; compile interactives
+    IMMEDIATE, POSTPONE, DEFER, IS, ; compile and execute management
+    CREATE, DOES    ; compile and reproduce

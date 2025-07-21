@@ -4,7 +4,7 @@
 
     SP, RP, IP, WP, TOS, TOR, HP, DP    ; internal variables, never changes directly 
     unest, next, pick, nest, jump  ; heart beat of thread forth system
-
+    literal ; copy from memory dictionary (IP) to stack
     
     !, @, !C, @C  ; memory store and fetch
     SP@, RP@, SP!, RP!  ; setup of stacks
@@ -17,6 +17,7 @@
     BRANCH, QBRANCH  ; jump 
     IF, ELSE, THEN  ; decision 
 
+    VARIABLE, CONSTANT, VALUE    ; 
     DO, LOOP, +LOOP, -LOOP  ; repetions
     FOR, NEXT, CONTINUE, BREAK  ; repetitions
     BEGIN, WHILE, REPEAT, AGAIN  ; repetitions
